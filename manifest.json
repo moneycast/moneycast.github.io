@@ -1,0 +1,17 @@
+{
+  "name": "MoneyCast Remesas y Recargas",
+  "short_name": "MoneyCast",
+  "description": "App para ordenar servicios de remesas y recargas",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
