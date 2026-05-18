@@ -43,3 +43,4 @@ class Store {
         this.saveServices(services);
     }
 }
+window.Store = Store;

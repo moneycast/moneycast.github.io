@@ -106,6 +106,7 @@ class SalesView {
     }
 
     static handleDeliveryToggle(e) {
+        const manualContainer = document.getElementById('manual-address-container');
         if (e.target.checked) {
             this.locationStatus.classList.remove('hidden');
             this.locationStatus.innerHTML = '<span class="text-gray-500 flex items-center justify-center gap-1"><i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Obteniendo ubicación...</span>';
@@ -119,25 +120,28 @@ class SalesView {
                         this.locationUrl = `https://www.google.com/maps?q=${lat},${lng}`;
                         this.locationStatus.innerHTML = '<span class="text-primary flex items-center justify-center gap-1 font-medium"><i data-lucide="check-circle" class="w-4 h-4"></i> Ubicación obtenida exitosamente</span>';
                         lucide.createIcons();
+                        manualContainer.classList.add('hidden');
                     },
                     (error) => {
                         console.error(error);
-                        let errMsg = "Error al obtener ubicación";
-                        if (error.code === error.PERMISSION_DENIED) errMsg = "Permiso de ubicación denegado";
-                        this.locationStatus.innerHTML = `<span class="text-red-500 text-xs text-center flex items-center justify-center gap-1 font-medium"><i data-lucide="alert-circle" class="w-4 h-4"></i> ${errMsg}</span>`;
+                        let errMsg = "No se pudo obtener ubicación automática.";
+                        this.locationStatus.innerHTML = `<span class="text-amber-600 text-xs text-center flex items-center justify-center gap-1 font-medium"><i data-lucide="alert-circle" class="w-4 h-4"></i> ${errMsg}</span>`;
                         lucide.createIcons();
-                        e.target.checked = false; // Revert switch
+                        // Fallback: show manual address field
+                        manualContainer.classList.remove('hidden');
                     },
-                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
                 );
             } else {
-                alert("Geolocalización no soportada en este navegador.");
-                e.target.checked = false;
-                this.locationStatus.classList.add('hidden');
+                this.locationStatus.innerHTML = `<span class="text-amber-600 text-xs text-center flex items-center justify-center gap-1 font-medium"><i data-lucide="alert-circle" class="w-4 h-4"></i> Geolocalización no soportada.</span>`;
+                lucide.createIcons();
+                manualContainer.classList.remove('hidden');
             }
         } else {
             this.locationUrl = null;
             this.locationStatus.classList.add('hidden');
+            manualContainer.classList.add('hidden');
+            document.getElementById('manual-address').value = '';
         }
     }
 
@@ -146,8 +150,12 @@ class SalesView {
         
         let total = this.cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
         const includeDelivery = this.toggleDelivery.checked;
+        const manualAddress = document.getElementById('manual-address').value.trim();
         
-        const message = WhatsAppService.generateMessage(this.cart, total, includeDelivery, this.locationUrl);
+        // Use GPS location if available, otherwise manual address
+        const deliveryInfo = this.locationUrl || manualAddress;
+        
+        const message = WhatsAppService.generateMessage(this.cart, total, includeDelivery, deliveryInfo);
         WhatsAppService.openWhatsApp(message);
         
         // Optional: clear cart after sending
@@ -156,5 +164,8 @@ class SalesView {
         this.toggleDelivery.checked = false;
         this.locationUrl = null;
         this.locationStatus.classList.add('hidden');
+        document.getElementById('manual-address-container').classList.add('hidden');
+        document.getElementById('manual-address').value = '';
     }
 }
+window.SalesView = SalesView;

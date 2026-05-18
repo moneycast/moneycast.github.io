@@ -122,3 +122,4 @@ class CrudView {
         }
     }
 }
+window.CrudView = CrudView;

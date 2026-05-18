@@ -1,7 +1,7 @@
 class WhatsAppService {
     static PHONE_NUMBER = '5977479759';
 
-    static generateMessage(cart, total, includeDelivery, locationUrl) {
+    static generateMessage(cart, total, includeDelivery, deliveryInfo) {
         let text = `*💳 NUEVA ORDEN MONEYCAST*\n\n`;
         text += `*Detalle del Pedido:*\n`;
         
@@ -13,8 +13,12 @@ class WhatsAppService {
         
         if (includeDelivery) {
             text += `\n*📍 Solicitud de Delivery:*\n`;
-            if (locationUrl) {
-                text += `Ubicación: ${locationUrl}\n`;
+            if (deliveryInfo) {
+                if (deliveryInfo.startsWith('http')) {
+                    text += `Ubicación GPS: ${deliveryInfo}\n`;
+                } else {
+                    text += `Dirección: ${deliveryInfo}\n`;
+                }
             } else {
                 text += `Ubicación: Pendiente de enviar por el cliente.\n`;
             }
@@ -39,3 +43,4 @@ class WhatsAppService {
         window.open(url, '_blank');
     }
 }
+window.WhatsAppService = WhatsAppService;
