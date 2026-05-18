@@ -24,19 +24,28 @@ class CrudView {
         }
 
         services.forEach(service => {
+            let catIcon = 'help-circle';
+            if (service.category === 'Recarga') catIcon = 'smartphone';
+            else if (service.category === 'Remesa') catIcon = 'globe';
+
             const el = document.createElement('div');
-            el.className = 'bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center transition-all hover:shadow-md';
+            el.className = 'bg-white p-4.5 rounded-2xl shadow-premium-light border border-slate-100/60 flex justify-between items-center transition-all duration-200 hover:translate-y-[-2px]';
             el.innerHTML = `
-                <div>
-                    <span class="text-[10px] font-bold text-primary uppercase tracking-widest bg-green-50 px-2 py-1 rounded-full">${service.category}</span>
-                    <h4 class="font-bold text-gray-800 text-lg mt-1">${service.name}</h4>
-                    <p class="text-gold-dark font-bold">$${parseFloat(service.price).toFixed(2)}</p>
+                <div class="flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-full bg-red-50 border border-red-100/50 flex items-center justify-center text-primary">
+                        <i data-lucide="${catIcon}" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <span class="text-[9px] font-black uppercase tracking-wider text-primary bg-red-50/60 border border-red-100/30 px-2 py-0.5 rounded-full">${service.category}</span>
+                        <h4 class="font-extrabold text-slate-800 text-sm mt-1.5">${service.name}</h4>
+                        <p class="text-primary font-black text-xs mt-0.5">$${parseFloat(service.price).toFixed(2)}</p>
+                    </div>
                 </div>
                 <div class="flex gap-2">
-                    <button class="btn-edit p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-200 transition" data-id="${service.id}">
-                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    <button class="btn-edit p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl transition duration-200 border border-slate-150" data-id="${service.id}">
+                        <i data-lucide="edit-3" class="w-4 h-4"></i>
                     </button>
-                    <button class="btn-delete p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition" data-id="${service.id}">
+                    <button class="btn-delete p-2.5 bg-red-50/50 hover:bg-red-50 text-primary rounded-xl transition duration-200 border border-red-100/30" data-id="${service.id}">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 </div>

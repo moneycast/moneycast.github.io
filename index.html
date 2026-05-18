@@ -7,13 +7,13 @@
     
     <!-- PWA Settings -->
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#10b981">
+    <meta name="theme-color" content="#e30613">
     <link rel="apple-touch-icon" href="./assets/icons/icon-512x512.png">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,14 +22,17 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#10b981', // Verde esmeralda
-                        'primary-dark': '#047857',
-                        gold: '#d4af37', // Dorado
-                        'gold-light': '#f3e5ab',
-                        'gold-dark': '#aa8a29',
+                        primary: '#e30613', // Premium Red
+                        'primary-light': '#ff3b30', // Vivid Red/Orange
+                        'primary-dark': '#b5040d',
+                        dark: '#1e293b', // Slate 800
                     },
                     fontFamily: {
                         sans: ['Outfit', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'premium-light': '0 8px 30px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.02)',
+                        'red-glow': '0 8px 20px -4px rgba(227, 6, 19, 0.3)',
                     }
                 }
             }
@@ -42,113 +45,148 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 antialiased h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-50/50 text-dark antialiased h-screen flex flex-col overflow-hidden">
 
-    <!-- App Header -->
-    <header class="bg-primary text-white shadow-md z-10 relative">
-        <div class="px-4 py-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center gap-2">
-                <i data-lucide="zap" class="text-gold w-6 h-6"></i>
-                <span class="text-gold tracking-wide">Money</span>Cast
-            </h1>
-            <button id="btn-sync" class="p-2 bg-primary-dark rounded-full hover:bg-opacity-80 transition">
-                <i data-lucide="refresh-cw" class="w-5 h-5 text-gold-light"></i>
+    <!-- App Header (Premium Red Style) -->
+    <header class="bg-primary text-white shadow-md z-30 sticky top-0">
+        <div class="max-w-md mx-auto px-5 py-4.5 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full border border-white/20 p-0.5 overflow-hidden bg-white/10 flex items-center justify-center">
+                    <img src="./assets/icons/logo.png" alt="MoneyCast Logo" class="w-full h-full object-cover rounded-full bg-white">
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight leading-none">
+                        MoneyCast
+                    </h1>
+                    <p class="text-[10px] text-white/80 font-bold tracking-widest uppercase mt-0.5">Remesas & Recargas</p>
+                </div>
+            </div>
+            <button id="btn-sync" class="p-2.5 bg-white/10 rounded-full hover:bg-white/20 transition duration-300 flex items-center justify-center active:scale-95">
+                <i data-lucide="refresh-cw" class="w-4.5 h-4.5 text-white"></i>
             </button>
         </div>
     </header>
 
     <!-- Main Content Area -->
-    <main class="flex-1 overflow-y-auto pb-20 relative">
+    <main class="flex-1 overflow-y-auto pb-28 max-w-md mx-auto w-full px-4 z-10">
         
         <!-- View: Sales (Ventas) -->
-        <section id="view-sales" class="view-section block p-4 fade-in">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b-2 border-gold inline-block pb-1">Nueva Orden</h2>
-            
-            <div id="sales-services-list" class="grid grid-cols-1 gap-4 mb-6">
-                <!-- Services will be injected here -->
+        <section id="view-sales" class="view-section block py-5 fade-in">
+            <!-- Promo banner styled like Telecom App -->
+            <div class="bg-red-gradient text-white p-5 rounded-2xl shadow-red-glow mb-6 relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full"></div>
+                <div class="absolute right-8 top-2 w-12 h-12 bg-white/5 rounded-full"></div>
+                
+                <span class="text-[9px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full font-extrabold text-white">Suriname Promo</span>
+                <h3 class="text-lg font-black mt-2 leading-tight">¡Ordena Recargas y Remesas por WhatsApp!</h3>
+                <p class="text-xs text-white/90 mt-1">Fácil, rápido y directo a tu smartphone</p>
             </div>
 
-            <!-- Cart Summary -->
-            <div class="bg-white rounded-xl shadow-lg p-5 mt-4 border-t-4 border-primary">
-                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
-                    <i data-lucide="shopping-cart" class="text-primary w-5 h-5"></i> Resumen del Pedido
+            <div class="mb-4">
+                <h2 class="text-lg font-black text-slate-800 tracking-tight">Elige un Servicio</h2>
+            </div>
+            
+            <div id="sales-services-list" class="grid grid-cols-1 gap-3.5 mb-6">
+                <!-- Services injected as elegant Premium tiles -->
+            </div>
+
+            <!-- Cart Summary Card -->
+            <div class="bg-white rounded-2xl shadow-premium-light p-5 mt-4 border border-slate-100 relative overflow-hidden">
+                <h3 class="text-base font-black mb-4 text-slate-800 flex items-center gap-2">
+                    <i data-lucide="shopping-bag" class="text-primary w-5 h-5"></i> Resumen de Solicitud
                 </h3>
-                <ul id="cart-items" class="space-y-2 mb-4 text-sm">
-                    <!-- Cart items will be injected here -->
-                    <li class="text-gray-500 italic">Carrito vacío</li>
+                
+                <ul id="cart-items" class="space-y-3 mb-5 max-h-48 overflow-y-auto pr-1">
+                    <!-- Cart items injected here -->
+                    <li class="text-slate-400 italic text-center py-4 text-sm">Tu carrito está vacío</li>
                 </ul>
-                <div class="flex justify-between font-bold text-lg border-t pt-2 mb-4">
-                    <span>Total:</span>
-                    <span id="cart-total" class="text-primary">$0.00</span>
+                
+                <div class="bg-slate-50 rounded-xl p-4 mb-5 flex justify-between items-center border border-slate-100">
+                    <span class="text-slate-500 font-bold text-xs uppercase tracking-wider">Total a Pagar:</span>
+                    <span id="cart-total" class="text-2xl font-black text-primary">$0.00</span>
                 </div>
 
-                <!-- Delivery Toggle -->
-                <div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg mb-4 border border-gray-200">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="map-pin" class="text-gold-dark w-5 h-5"></i>
-                        <span class="font-medium text-gray-700">Solicitar Delivery</span>
+                <!-- Delivery option -->
+                <div class="flex items-center justify-between bg-red-50/50 p-4 rounded-xl mb-5 border border-red-100/40">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-white rounded-lg shadow-sm">
+                            <i data-lucide="map-pin" class="text-primary w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <span class="font-extrabold text-slate-800 text-sm block">Solicitar Delivery</span>
+                            <span class="text-[10px] text-slate-500 block">Recibir en mi ubicación actual</span>
+                        </div>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="toggle-delivery" class="sr-only peer">
-                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                 </div>
                 
-                <div id="location-status" class="text-xs text-center mb-4 hidden">
-                    <span class="text-primary flex items-center justify-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> Ubicación obtenida</span>
+                <!-- Location status -->
+                <div id="location-status" class="text-xs mb-5 hidden py-2.5 px-3.5 rounded-xl bg-red-50 border border-red-100/50 flex items-center justify-between">
+                    <span id="location-text" class="text-primary font-bold flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-4 h-4 text-primary"></i> Ubicación obtenida
+                    </span>
+                    <button id="btn-refresh-location" class="p-1.5 hover:bg-red-200/50 rounded-lg text-primary transition duration-200 flex items-center justify-center" type="button" title="Refrescar ubicación">
+                        <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                    </button>
                 </div>
 
                 <!-- Manual Address Fallback -->
-                <div id="manual-address-container" class="mb-4 hidden fade-in">
-                    <label class="block text-gray-700 text-sm font-semibold mb-1" for="manual-address">📍 Dirección de Entrega (Manual)</label>
-                    <textarea class="shadow-sm border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm" id="manual-address" rows="2" placeholder="Escribe tu dirección completa o indicaciones para el delivery..."></textarea>
+                <div id="manual-address-container" class="mb-5 hidden fade-in">
+                    <label class="block text-slate-600 text-xs font-black mb-1.5 tracking-wide uppercase" for="manual-address">📍 Dirección de Entrega (Manual)</label>
+                    <textarea class="premium-input border border-slate-200 rounded-xl w-full py-2.5 px-3.5 text-slate-800 focus:outline-none text-sm bg-slate-50" id="manual-address" rows="2" placeholder="Escribe tu dirección completa y puntos de referencia..."></textarea>
                 </div>
 
-                <button id="btn-checkout" class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i data-lucide="send" class="w-5 h-5"></i> Enviar por WhatsApp
+                <button id="btn-checkout" class="w-full bg-primary hover:bg-primary-dark text-white font-black py-4 px-4 rounded-xl shadow-red-glow transition-all duration-300 flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-wider active:scale-[0.98]">
+                    Enviar por WhatsApp
                 </button>
             </div>
         </section>
 
         <!-- View: CRUD (Servicios) -->
-        <section id="view-crud" class="view-section hidden p-4 fade-in">
+        <section id="view-crud" class="view-section hidden py-5 fade-in">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800 border-b-2 border-gold inline-block pb-1">Gestión de Servicios</h2>
-                <button id="btn-add-service" class="bg-primary text-white p-2 rounded-lg shadow hover:bg-primary-dark transition">
-                    <i data-lucide="plus" class="w-5 h-5"></i>
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 tracking-tight">Administración</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Catálogo de remesas y recargas</p>
+                </div>
+                <button id="btn-add-service" class="bg-primary hover:bg-primary-dark text-white font-bold py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95 shadow-red-glow">
+                    + Nuevo
                 </button>
             </div>
 
             <!-- Add/Edit Form Modal -->
-            <div id="modal-service" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-                <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden transform transition-all scale-95 opacity-0" id="modal-content">
-                    <div class="bg-primary text-white px-4 py-3 flex justify-between items-center">
-                        <h3 id="modal-title" class="font-bold text-lg">Nuevo Servicio</h3>
-                        <button id="btn-close-modal" class="text-white hover:text-gold-light transition"><i data-lucide="x"></i></button>
+            <div id="modal-service" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-95 opacity-0 duration-300" id="modal-content">
+                    <div class="bg-primary text-white px-5 py-4.5 flex justify-between items-center border-b border-primary/10">
+                        <h3 id="modal-title" class="font-black text-base">Nuevo Servicio</h3>
+                        <button id="btn-close-modal" class="text-white/80 hover:text-white transition bg-white/10 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
                     </div>
                     <form id="form-service" class="p-5">
                         <input type="hidden" id="service-id">
                         <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="service-name">Nombre del Servicio</label>
-                            <input class="shadow-sm appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" id="service-name" type="text" placeholder="Ej. Recarga Movistar" required>
+                            <label class="block text-slate-600 text-xs font-extrabold mb-1.5 tracking-wide uppercase" for="service-name">Nombre del Servicio</label>
+                            <input class="premium-input border border-slate-200 rounded-xl w-full py-2.5 px-3.5 text-slate-800 leading-tight focus:outline-none text-sm bg-slate-50" id="service-name" type="text" placeholder="Ej. Recarga Claro $5" required>
                         </div>
                         <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="service-category">Categoría</label>
-                            <select class="shadow-sm border rounded w-full py-2 px-3 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" id="service-category" required>
+                            <label class="block text-slate-600 text-xs font-extrabold mb-1.5 tracking-wide uppercase" for="service-category">Categoría</label>
+                            <select class="premium-input border border-slate-200 rounded-xl w-full py-2.5 px-3.5 text-slate-800 bg-slate-50 focus:outline-none text-sm" id="service-category" required>
                                 <option value="Recarga">Recarga</option>
                                 <option value="Remesa">Remesa</option>
                                 <option value="Otro">Otro</option>
                             </select>
                         </div>
                         <div class="mb-6">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="service-price">Precio Base ($)</label>
-                            <input class="shadow-sm appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" id="service-price" type="number" step="0.01" placeholder="0.00" required>
+                            <label class="block text-slate-600 text-xs font-extrabold mb-1.5 tracking-wide uppercase" for="service-price">Precio Base ($)</label>
+                            <input class="premium-input border border-slate-200 rounded-xl w-full py-2.5 px-3.5 text-slate-800 leading-tight focus:outline-none text-sm bg-slate-50" id="service-price" type="number" step="0.01" placeholder="0.00" required>
                         </div>
-                        <div class="flex items-center justify-end">
-                            <button class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded mr-2 hover:bg-gray-300 transition" type="button" id="btn-cancel-modal">
+                        <div class="flex items-center justify-end gap-2 border-t pt-4">
+                            <button class="bg-slate-100 text-slate-700 font-bold py-2.5 px-4 rounded-xl hover:bg-slate-200 transition text-xs uppercase tracking-wider" type="button" id="btn-cancel-modal">
                                 Cancelar
                             </button>
-                            <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-6 rounded shadow transition" type="submit">
+                            <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2.5 px-5 rounded-xl shadow-red-glow transition text-xs uppercase tracking-wider" type="submit">
                                 Guardar
                             </button>
                         </div>
@@ -164,30 +202,28 @@
 
     </main>
 
-    <!-- Bottom Navigation -->
-    <nav class="bg-white border-t border-gray-200 fixed bottom-0 w-full z-20 pb-safe">
-        <ul class="flex justify-around items-center h-16">
-            <li class="flex-1">
-                <button class="nav-btn w-full h-full flex flex-col items-center justify-center text-primary transition-colors" data-target="view-sales">
-                    <i data-lucide="store" class="w-6 h-6 mb-1"></i>
-                    <span class="text-xs font-medium">Ventas</span>
-                </button>
-            </li>
-            <li class="flex-1 relative">
-                <div class="absolute -top-6 left-1/2 transform -translate-x-1/2">
-                    <div class="bg-primary p-3 rounded-full shadow-lg border-4 border-white">
-                        <i data-lucide="wallet" class="w-6 h-6 text-gold"></i>
-                    </div>
-                </div>
-            </li>
-            <li class="flex-1">
-                <button class="nav-btn w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-primary transition-colors" data-target="view-crud">
-                    <i data-lucide="settings-2" class="w-6 h-6 mb-1"></i>
-                    <span class="text-xs font-medium">Servicios</span>
-                </button>
-            </li>
-        </ul>
-    </nav>
+    <!-- Floating Bottom Navigation (Premium App Style) -->
+    <div class="fixed bottom-4 left-0 w-full z-40 px-4">
+        <nav class="bg-white border border-slate-100 rounded-2xl shadow-premium-light max-w-sm mx-auto overflow-hidden">
+            <ul class="flex justify-around items-center h-16">
+                <li class="flex-1">
+                    <button class="nav-btn w-full h-full flex flex-col items-center justify-center text-primary relative transition-colors py-2" data-target="view-sales">
+                        <i data-lucide="store" class="w-5.5 h-5.5 mb-0.5"></i>
+                        <span class="text-[10px] font-extrabold tracking-wide uppercase">Ventas</span>
+                    </button>
+                </li>
+                <li class="flex-0 flex justify-center items-center">
+                    <span class="h-4 w-[1px] bg-slate-100"></span>
+                </li>
+                <li class="flex-1">
+                    <button class="nav-btn w-full h-full flex flex-col items-center justify-center text-slate-400 hover:text-primary relative transition-colors py-2" data-target="view-crud">
+                        <i data-lucide="settings" class="w-5.5 h-5.5 mb-0.5"></i>
+                        <span class="text-[10px] font-extrabold tracking-wide uppercase">Servicios</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    </div>
 
     <!-- Scripts -->
     <script src="./assets/js/store.js"></script>
