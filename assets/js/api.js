@@ -1,9 +1,8 @@
-// Módulo de API - Integración con GitHub Gists y Fallback de Mocks
+// Módulo de API - Integración con GitHub Gists (Gist ID Implícito)
 
-// Configura aquí tus URLs RAW del Gist si ya las tienes creadas y quieres dejarlas fijas de fábrica
-// Por ejemplo: 'https://raw.githubusercontent.com/usuario/gist-id/raw/datos_app.json'
-const GIST_DATA_URL = ''; 
-const GIST_PROMOS_URL = '';
+// El Gist ID definido de forma implícita para todo el proyecto
+export const GIST_ID = '2ace0375f4d68802b9098557156426b9';
+const GIST_FILE_NAME = 'moneycast.txt';
 
 // Mocks de Alta Fidelidad para pruebas iniciales y fallback
 export const MOCK_CONFIG = {
@@ -79,75 +78,54 @@ export const MOCK_PROMOS = [
 ];
 
 export const Api = {
-  // Carga los datos de la aplicación (configuración y ofertas)
+  // Carga los datos de la aplicación (configuración y ofertas unificadas)
   async loadAppData() {
-    const customGistId = localStorage.getItem('moneycast_gist_id');
-    const customFilename = localStorage.getItem('moneycast_gist_filename') || 'datos_app.json';
-    const customPromosFilename = localStorage.getItem('moneycast_gist_promos_filename') || 'ofertas.json';
-
-    let dataUrl = GIST_DATA_URL;
-    let promosUrl = GIST_PROMOS_URL;
-
-    // Si hay un Gist ID configurado en LocalStorage, usamos la API pública de Gists de GitHub
-    // Esto es genial porque evita la caché de 5 minutos del RAW CDN de GitHub y devuelve los datos actualizados instantáneamente.
-    if (customGistId) {
-      try {
-        console.log(`API: Cargando datos desde API Gist de GitHub (ID: ${customGistId})`);
-        const res = await fetch(`https://api.github.com/gists/${customGistId}`);
-        if (res.ok) {
-          const gistData = await res.json();
-          const files = gistData.files;
-          
-          let config = MOCK_CONFIG;
-          let promos = MOCK_PROMOS;
-          
-          if (files[customFilename] && files[customFilename].content) {
-            config = JSON.parse(files[customFilename].content);
-          }
-          if (files[customPromosFilename] && files[customPromosFilename].content) {
-            promos = JSON.parse(files[customPromosFilename].content);
-          }
-          
-          console.log('API: Datos cargados correctamente desde el Gist.');
-          return { config, promos };
-        } else {
-          throw new Error(`API Gist devuelta con código ${res.status}`);
-        }
-      } catch (error) {
-        console.warn('API: Fallo al cargar desde Gist API personalizada, probando URLs RAW o Mocks.', error);
-      }
-    }
-
-    // Si no hay URLs configuradas de fábrica, usamos mocks inmediatamente
-    if (!dataUrl || !promosUrl) {
-      console.log('API: Utilizando datos mock locales.');
-      return {
-        config: MOCK_CONFIG,
-        promos: MOCK_PROMOS
-      };
-    }
-
     try {
-      const [resConfig, resPromos] = await Promise.all([
-        fetch(dataUrl),
-        fetch(promosUrl)
-      ]);
-
-      if (!resConfig.ok || !resPromos.ok) {
-        throw new Error('Error al conectar con los servidores de GitHub Gist.');
+      console.log(`API: Cargando datos desde API Gist de GitHub Implícito (ID: ${GIST_ID})`);
+      const res = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+      
+      if (res.ok) {
+        const gistData = await res.json();
+        const files = gistData.files;
+        
+        // Verificar si existe nuestro archivo único de datos
+        if (files[GIST_FILE_NAME] && files[GIST_FILE_NAME].content) {
+          const contentStr = files[GIST_FILE_NAME].content.trim();
+          
+          // Si el archivo contiene el marcador/placeholder por defecto del Gist recién creado,
+          // cargamos los mocks como base inicial para que el administrador los empiece a editar.
+          if (contentStr === 'moneycast options' || contentStr === '') {
+            console.log('API: Gist recién inicializado. Cargando Mocks predeterminados.');
+            return {
+              config: MOCK_CONFIG,
+              promos: MOCK_PROMOS
+            };
+          }
+          
+          try {
+            // El contenido del archivo moneycast.txt se parsea como un JSON que unifica config y promos
+            const parsedData = JSON.parse(contentStr);
+            const config = parsedData.config || MOCK_CONFIG;
+            const promos = parsedData.promos || MOCK_PROMOS;
+            
+            console.log('API: Datos unificados cargados con éxito desde moneycast.txt.');
+            return { config, promos };
+          } catch (jsonError) {
+            console.warn('API: El contenido de moneycast.txt no es un JSON válido. Usando Mocks.', jsonError);
+          }
+        }
+      } else {
+        throw new Error(`API Gist devuelta con código ${res.status}`);
       }
-
-      const config = await resConfig.json();
-      const promos = await resPromos.json();
-
-      return { config, promos };
     } catch (error) {
-      console.warn('API: Fallo al cargar datos reales. Cargando fallback de mocks.', error);
-      return {
-        config: MOCK_CONFIG,
-        promos: MOCK_PROMOS,
-        fallback: true
-      };
+      console.warn('API: Fallo de conexión o lectura en Gist. Cargando fallback de mocks.', error);
     }
+
+    // Fallback robusto en caso de error o sin conexión
+    return {
+      config: MOCK_CONFIG,
+      promos: MOCK_PROMOS,
+      fallback: true
+    };
   }
 };

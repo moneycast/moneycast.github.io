@@ -1,14 +1,11 @@
-// Vista de Administración (Admin Panel) - Editor Completo (Remesas & Recargas) y Token On-Demand
+// Vista de Administración (Admin Panel) - Editor de Datos e implicit Gist ID
 
 import { Store } from '../store.js';
-import { Api } from '../api.js';
+import { Api, GIST_ID } from '../api.js';
 import { t } from '../i18n.js';
 
 export function renderAdmin(container, state) {
   const { config, promos } = state;
-  
-  // Obtener credenciales públicas guardadas (Gist ID únicamente)
-  const gistId = localStorage.getItem('moneycast_gist_id') || '';
   
   const tasas = config ? config.tasas_remesas : [];
   const operadores = config ? config.operadores_recarga : [];
@@ -126,31 +123,18 @@ export function renderAdmin(container, state) {
       </div>
 
       <div class="space-y-6">
-        <!-- 1. Formulario de Gist ID (Local Storage) -->
-        <div class="glass-panel p-5 rounded-3xl border border-zinc-800 space-y-4">
-          <div class="flex items-center gap-2.5 text-zinc-300 font-bold text-sm">
-            <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
-            <span>Base de Datos Gist</span>
+        <!-- Tarjeta Informativa de la Base de Datos -->
+        <div class="glass-panel p-4.5 rounded-3xl border border-zinc-800 flex items-center gap-3.5">
+          <div class="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-400">
+            <i data-lucide="cloud-lightning" class="w-5 h-5"></i>
           </div>
-
-          <div class="space-y-3.5">
-            <!-- Gist ID -->
-            <div class="space-y-1">
-              <label class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">${t('label_gist_id')}</label>
-              <input type="text" id="admin-gist-id" class="glass-input w-full p-3 rounded-xl text-xs focus:outline-none" 
-                     value="${gistId}" placeholder="p.ej. 2c4d8e9f0123456789abcdef01234567">
-            </div>
-
-            <button type="button" id="btn-save-creds" class="w-full py-3 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-xs font-bold text-zinc-200 hover:text-white rounded-xl transition-all flex items-center justify-center gap-2">
-              <i data-lucide="save" class="w-3.5 h-3.5"></i>
-              <span>${t('btn_save_credentials')}</span>
-            </button>
-            
-            <p id="msg-creds-status" class="text-[10px] text-emerald-400 text-center font-semibold hidden"></p>
+          <div>
+            <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Base de Datos Conectada</p>
+            <p class="text-xs font-bold text-white">Gist ID: <span class="text-zinc-400 font-mono text-[10px]">${GIST_ID}</span></p>
           </div>
         </div>
 
-        <!-- 2. Editor de Países y Tasas (Remesas) -->
+        <!-- 1. Editor de Países y Tasas (Remesas) -->
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">${t('editor_section_title')}</h3>
@@ -163,7 +147,7 @@ export function renderAdmin(container, state) {
           </div>
         </div>
 
-        <!-- 3. Editor de Operadores y Montos (Recargas) -->
+        <!-- 2. Editor de Operadores y Montos (Recargas) -->
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">${t('editor_recargas_title')}</h3>
@@ -176,7 +160,7 @@ export function renderAdmin(container, state) {
           </div>
         </div>
 
-        <!-- 4. Editor de Promociones -->
+        <!-- 3. Editor de Promociones -->
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">${t('label_promos_editor')}</h3>
@@ -189,7 +173,7 @@ export function renderAdmin(container, state) {
           </div>
         </div>
 
-        <!-- 5. Publicación Remota Con Token Obligatorio en Vivo -->
+        <!-- 4. Publicación Remota Con Token Obligatorio en Vivo -->
         <div class="pt-6 border-t border-zinc-900 space-y-4">
           <div class="glass-panel p-5 rounded-3xl border border-zinc-800 space-y-3.5">
             <div class="flex items-center gap-2.5 text-zinc-300 font-bold text-sm">
@@ -227,29 +211,6 @@ export function renderAdmin(container, state) {
   // Volver
   document.getElementById('btn-admin-back').addEventListener('click', () => {
     Store.navigate('home');
-  });
-
-  // Guardar Gist ID únicamente en localStorage
-  document.getElementById('btn-save-creds').addEventListener('click', () => {
-    const inputGist = document.getElementById('admin-gist-id').value.trim();
-    localStorage.setItem('moneycast_gist_id', inputGist);
-    
-    const msg = document.getElementById('msg-creds-status');
-    msg.innerText = t('msg_credentials_saved');
-    msg.classList.remove('hidden');
-    
-    setTimeout(() => {
-      msg.classList.add('hidden');
-      // Recargar datos desde la API del nuevo Gist
-      Store.setLoading(true);
-      Api.loadAppData()
-        .then(data => {
-          Store.setData(data.config, data.promos);
-        })
-        .catch(err => {
-          Store.setError(err.message);
-        });
-    }, 1500);
   });
 
   // Mutaciones del editor de países (Remesas)
@@ -349,21 +310,11 @@ export function renderAdmin(container, state) {
 
   // BOTÓN DE PUBLICACIÓN REMOTA CON TOKEN EN VIVO (PATCH Gist en GitHub)
   document.getElementById('btn-publish-gist').addEventListener('click', async () => {
-    const activeGistId = localStorage.getItem('moneycast_gist_id');
     const activeToken = document.getElementById('admin-github-token-live').value.trim(); // Leído en el momento
     
-    const filename = 'datos_app.json';
-    const promosFilename = 'ofertas.json';
-
+    const filename = 'moneycast.txt';
     const statusContainer = document.getElementById('publish-status-container');
     const statusText = document.getElementById('publish-status-text');
-
-    if (!activeGistId) {
-      statusContainer.className = "text-center p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 animate-fade-in";
-      statusText.innerText = t('msg_publish_error');
-      statusContainer.classList.remove('hidden');
-      return;
-    }
 
     if (!activeToken) {
       alert(t('alert_token_missing'));
@@ -382,19 +333,20 @@ export function renderAdmin(container, state) {
     statusText.innerText = t('msg_publishing');
     statusContainer.classList.remove('hidden');
 
+    // Estructura unificada en un solo archivo "moneycast.txt"
     const payload = {
       files: {
         [filename]: {
-          content: JSON.stringify(config, null, 2)
-        },
-        [promosFilename]: {
-          content: JSON.stringify(promosList, null, 2)
+          content: JSON.stringify({
+            config: config,
+            promos: promosList
+          }, null, 2)
         }
       }
     };
 
     try {
-      const response = await fetch(`https://api.github.com/gists/${activeGistId}`, {
+      const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${activeToken}`,
@@ -407,7 +359,7 @@ export function renderAdmin(container, state) {
         statusContainer.className = "text-center p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 animate-fade-in";
         statusText.innerText = t('msg_publish_success');
         
-        // Sincronizar de inmediato
+        // Sincronizar de inmediato el cliente local
         const data = await Api.loadAppData();
         Store.setData(data.config, data.promos);
       } else {
