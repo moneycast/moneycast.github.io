@@ -8,6 +8,7 @@ const state = {
   // Datos descargados del Gist
   config: null,
   promos: [],
+  pedidos: [],
   loading: true,
   error: null,
 
@@ -20,6 +21,7 @@ const state = {
   // Estado de la orden actual
   order: {
     type: null, // 'remesa' | 'recarga'
+    contacto_whatsapp: null, // Teléfono de contacto WhatsApp seleccionado
     
     // Para Remesas
     remesa: {
@@ -40,7 +42,8 @@ const state = {
     delivery: {
       selected: false,
       direccion: '',
-      coordenadas: null // {lat, lng} opcional
+      coordenadas: null, // {lat, lng} opcional
+      oficina: null // ID de oficina física seleccionada si no es delivery
     }
   }
 };
@@ -76,9 +79,10 @@ export const Store = {
   },
 
   // Actualizar datos del Gist
-  setData(config, promos) {
+  setData(config, promos, pedidos) {
     state.config = config;
     state.promos = promos;
+    state.pedidos = pedidos || [];
     state.loading = false;
     state.error = null;
     this.notify();
@@ -119,6 +123,7 @@ export const Store = {
   resetOrder() {
     state.order = {
       type: null,
+      contacto_whatsapp: null,
       remesa: {
         pais: null,
         montoRecibir: 0,
@@ -133,7 +138,8 @@ export const Store = {
       delivery: {
         selected: false,
         direccion: '',
-        coordenadas: null
+        coordenadas: null,
+        oficina: null
       }
     };
     this.notify();
@@ -220,6 +226,16 @@ export const Store = {
 
   setDeliveryCoordenadas(lat, lng) {
     state.order.delivery.coordenadas = { lat, lng };
+    this.notify();
+  },
+
+  setOrderContactoWhatsApp(numero) {
+    state.order.contacto_whatsapp = numero;
+    this.notify();
+  },
+
+  setOrderDeliveryOficina(oficinaId) {
+    state.order.delivery.oficina = oficinaId;
     this.notify();
   },
 
@@ -311,6 +327,81 @@ export const Store = {
         state.order.recarga.operador = state.config.operadores_recarga[0] || null;
       }
       this.notify();
+    }
+  },
+
+  // Acciones Administrativas para Oficinas
+  addOficina(oficinaObj) {
+    if (!state.config) {
+      state.config = { oficinas: [] };
+    }
+    if (!state.config.oficinas) {
+      state.config.oficinas = [];
+    }
+    state.config.oficinas.push(oficinaObj);
+    this.notify();
+  },
+
+  updateOficina(index, field, value) {
+    if (state.config && state.config.oficinas && state.config.oficinas[index]) {
+      state.config.oficinas[index][field] = value;
+      this.notify();
+    }
+  },
+
+  deleteOficina(index) {
+    if (state.config && state.config.oficinas && state.config.oficinas[index]) {
+      state.config.oficinas.splice(index, 1);
+      this.notify();
+    }
+  },
+
+  // Acciones Administrativas para Contactos WhatsApp
+  addContacto(contactoObj) {
+    if (!state.config) {
+      state.config = { telefonos_contacto: [] };
+    }
+    if (!state.config.telefonos_contacto) {
+      state.config.telefonos_contacto = [];
+    }
+    state.config.telefonos_contacto.push(contactoObj);
+    this.notify();
+  },
+
+  updateContacto(index, field, value) {
+    if (state.config && state.config.telefonos_contacto && state.config.telefonos_contacto[index]) {
+      state.config.telefonos_contacto[index][field] = value;
+      this.notify();
+    }
+  },
+
+  deleteContacto(index) {
+    if (state.config && state.config.telefonos_contacto && state.config.telefonos_contacto[index]) {
+      state.config.telefonos_contacto.splice(index, 1);
+      this.notify();
+    }
+  },
+
+  // Acción Administrativa para Fuera de Servicio
+  setFueraDeServicio(tipo, value) {
+    if (!state.config) {
+      state.config = { fuera_de_servicio: { remesas: false, recargas: false } };
+    }
+    if (!state.config.fuera_de_servicio) {
+      state.config.fuera_de_servicio = { remesas: false, recargas: false };
+    }
+    state.config.fuera_de_servicio[tipo] = !!value;
+    this.notify();
+  },
+
+  // Acción Administrativa para Pedidos
+  updatePedidoEstado(pedidoId, nuevoEstado) {
+    if (state.pedidos) {
+      const pedido = state.pedidos.find(p => p.id === pedidoId);
+      if (pedido) {
+        pedido.estado = nuevoEstado;
+        this.notify();
+      }
     }
   }
 };

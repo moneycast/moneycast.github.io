@@ -94,15 +94,32 @@ export const WhatsApp = {
   generateOrderLink(order) {
     const lang = Store.getState().language || 'es';
     const t = templates[lang] || templates['es'];
+    const config = Store.getState().config;
     let message = '';
+    
+    // Obtener número de WhatsApp dinámico
+    let whatsappPhone = order.contacto_whatsapp;
+    if (!whatsappPhone) {
+      const contacts = config ? config.telefonos_contacto || [] : [];
+      whatsappPhone = contacts.length > 0 ? contacts[0].numero : WHATSAPP_PHONE;
+    }
     
     if (order.type === 'remesa') {
       const r = order.remesa;
-      const deliveryText = order.delivery.selected 
-        ? `${t.remesa.delivery_yes} ${order.delivery.direccion}`
-        : t.remesa.delivery_no;
       
-      const totalUSD = r.montoEnviar + (order.delivery.selected ? 3.00 : 0.00); 
+      let deliveryText = '';
+      if (order.delivery.selected) {
+        deliveryText = `${t.remesa.delivery_yes} ${order.delivery.direccion}`;
+      } else if (order.delivery.oficina) {
+        const offices = config ? config.oficinas || [] : [];
+        const office = offices.find(o => o.id === order.delivery.oficina);
+        const officeDetails = office ? `${office.nombre} - ${office.direccion}` : order.delivery.oficina;
+        deliveryText = `🏢 *Retiro en Oficina:* ${officeDetails}`;
+      } else {
+        deliveryText = t.remesa.delivery_no;
+      }
+      
+      const totalUSD = r.montoEnviar + (order.delivery.selected ? (config?.opciones_delivery?.costo_base_usd || 3.00) : 0.00); 
 
       message = `${t.remesa.intro}
 
@@ -122,11 +139,20 @@ ${t.remesa.footer}`;
 
     } else if (order.type === 'recarga') {
       const r = order.recarga;
-      const deliveryText = order.delivery.selected 
-        ? `${t.recarga.delivery_yes} ${order.delivery.direccion}`
-        : t.recarga.delivery_no;
+      
+      let deliveryText = '';
+      if (order.delivery.selected) {
+        deliveryText = `${t.recarga.delivery_yes} ${order.delivery.direccion}`;
+      } else if (order.delivery.oficina) {
+        const offices = config ? config.oficinas || [] : [];
+        const office = offices.find(o => o.id === order.delivery.oficina);
+        const officeDetails = office ? `${office.nombre} - ${office.direccion}` : order.delivery.oficina;
+        deliveryText = `🏢 *Retiro en Oficina:* ${officeDetails}`;
+      } else {
+        deliveryText = t.recarga.delivery_no;
+      }
 
-      const totalUSD = r.monto + (order.delivery.selected ? 3.00 : 0.00);
+      const totalUSD = r.monto + (order.delivery.selected ? (config?.opciones_delivery?.costo_base_usd || 3.00) : 0.00);
 
       message = `${t.recarga.intro}
 
@@ -145,7 +171,7 @@ ${t.recarga.footer}`;
     }
 
     const encodedText = encodeURIComponent(message);
-    return `https://wa.me/${WHATSAPP_PHONE}?text=${encodedText}`;
+    return `https://wa.me/${whatsappPhone}?text=${encodedText}`;
   },
 
   sendOrder(order) {

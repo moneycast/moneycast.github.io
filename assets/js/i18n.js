@@ -116,7 +116,34 @@ const translations = {
     vault_subtitle: "Acceso Restringido. Ingrese su Token de GitHub (PAT) para verificar sus credenciales y desbloquear las configuraciones.",
     btn_unlock: "Verificar y Desbloquear",
     msg_verifying: "Verificando token...",
-    msg_invalid_token: "Token inválido o sin permisos para esta base de datos."
+    msg_invalid_token: "Token inválido o sin permisos para esta base de datos.",
+
+    // Nuevas cadenas de Oficinas, WhatsApp, Pedidos y Fuera de Servicio
+    label_office_select: "Oficina de Retiro",
+    label_office_select_sub: "Escoge una de nuestras sucursales físicas",
+    label_whatsapp_select: "Línea de WhatsApp",
+    label_whatsapp_select_sub: "Selecciona el operador de tu preferencia",
+    msg_out_of_service_remesas: "El servicio de Envío de Remesas está temporalmente fuera de servicio.",
+    msg_out_of_service_recargas: "El servicio de Recargas de Saldo está temporalmente fuera de servicio.",
+    label_fuera_de_servicio_title: "Servicio Temporalmente Suspendido",
+    label_status_pending: "Pendiente",
+    label_status_completed: "Completado",
+    label_status_cancelled: "Cancelado",
+    label_orders_manager: "Gestión de Pedidos",
+    label_offices_editor: "Editor de Oficinas Físicas",
+    label_contacts_editor: "Editor de Contactos WhatsApp",
+    label_out_of_service_editor: "Modo Fuera de Servicio",
+    btn_add_office: "+ Agregar Oficina",
+    btn_add_contact: "+ Agregar Contacto",
+    placeholder_office_name: "Nombre de la oficina (ej. Sucursal Centro)",
+    placeholder_office_address: "Dirección completa de la oficina",
+    placeholder_contact_name: "Nombre del contacto / Sucursal",
+    placeholder_contact_phone: "Teléfono (ej. 597123456)",
+    label_orders_empty: "No hay pedidos registrados en el sistema.",
+    label_order_id: "Pedido",
+    label_order_details: "Detalles",
+    label_order_status_label: "Estado",
+    label_saving_order: "Registrando pedido pendiente en la nube..."
   },
   en: {
     // Global / Navbar
@@ -231,7 +258,34 @@ const translations = {
     vault_subtitle: "Restricted Access. Enter your GitHub Token (PAT) to verify credentials and unlock settings.",
     btn_unlock: "Verify and Unlock",
     msg_verifying: "Verifying token...",
-    msg_invalid_token: "Invalid token or no permissions for this database."
+    msg_invalid_token: "Invalid token or no permissions for this database.",
+
+    // New Office, WhatsApp, Orders and Out of Service strings
+    label_office_select: "Pickup Office",
+    label_office_select_sub: "Choose one of our physical branches",
+    label_whatsapp_select: "WhatsApp Line",
+    label_whatsapp_select_sub: "Select your preferred operator",
+    msg_out_of_service_remesas: "The Remittance service is temporarily out of service.",
+    msg_out_of_service_recargas: "The Mobile Top-up service is temporarily out of service.",
+    label_fuera_de_servicio_title: "Service Temporarily Suspended",
+    label_status_pending: "Pending",
+    label_status_completed: "Completed",
+    label_status_cancelled: "Cancelled",
+    label_orders_manager: "Order Management",
+    label_offices_editor: "Physical Offices Editor",
+    label_contacts_editor: "WhatsApp Contacts Editor",
+    label_out_of_service_editor: "Out of Service Mode",
+    btn_add_office: "+ Add Office",
+    btn_add_contact: "+ Add Contact",
+    placeholder_office_name: "Office name (e.g. Center Branch)",
+    placeholder_office_address: "Full office address",
+    placeholder_contact_name: "Contact / Branch name",
+    placeholder_contact_phone: "Phone (e.g. 597123456)",
+    label_orders_empty: "No orders registered in the system.",
+    label_order_id: "Order",
+    label_order_details: "Details",
+    label_order_status_label: "Status",
+    label_saving_order: "Registering pending order in the cloud..."
   },
   nl: {
     // Global / Navbar
@@ -346,7 +400,34 @@ const translations = {
     vault_subtitle: "Beperkte Toegang. Voer uw GitHub-token (PAT) in om de inloggegevens te verifiëren en de instellingen te ontgrendelen.",
     btn_unlock: "Verifiëren en Ontgrendelen",
     msg_verifying: "Token verifiëren...",
-    msg_invalid_token: "Ongeldig token of geen rechten voor deze database."
+    msg_invalid_token: "Ongeldig token of geen rechten voor deze database.",
+
+    // New Office, WhatsApp, Orders and Out of Service strings (Dutch)
+    label_office_select: "Ophaalkantoor",
+    label_office_select_sub: "Kies een van onze fysieke vestigingen",
+    label_whatsapp_select: "WhatsApp-lijn",
+    label_whatsapp_select_sub: "Selecteer uw voorkeursoperator",
+    msg_out_of_service_remesas: "De geldoverboekingsservice is tijdelijk buiten gebruik.",
+    msg_out_of_service_recargas: "De mobiele opwaardeerservice is tijdelijk buiten gebruik.",
+    label_fuera_de_servicio_title: "Service Tijdelijk Opgeschort",
+    label_status_pending: "In afwachting",
+    label_status_completed: "Voltooid",
+    label_status_cancelled: "Geannuleerd",
+    label_orders_manager: "Bestellingsbeheer",
+    label_offices_editor: "Fysieke Kantoren Editor",
+    label_contacts_editor: "WhatsApp Contacten Editor",
+    label_out_of_service_editor: "Buiten Gebruik Stand",
+    btn_add_office: "+ Kantoor Toevoegen",
+    btn_add_contact: "+ Contact Toevoegen",
+    placeholder_office_name: "Kantoornaam (bijv. Centrum Filiaal)",
+    placeholder_office_address: "Volledig kantooradres",
+    placeholder_contact_name: "Contact- / Filiaalnaam",
+    placeholder_contact_phone: "Telefoon (bijv. 597123456)",
+    label_orders_empty: "Er zijn geen bestellingen geregistreerd.",
+    label_order_id: "Bestelling",
+    label_order_details: "Details",
+    label_order_status_label: "Status",
+    label_saving_order: "Bezig met registreren van lopende bestelling..."
   }
 };
 

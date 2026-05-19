@@ -38,6 +38,11 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // Excluir version.json del Service Worker para evitar cachear consultas con timestamps
+  if (e.request.url.includes('version.json')) {
+    return;
+  }
+
   if (e.request.url.startsWith(self.location.origin)) {
     e.respondWith(
       caches.match(e.request).then((cachedResponse) => {

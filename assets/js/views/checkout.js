@@ -1,7 +1,6 @@
-// Vista de Resumen y Confirmación de la Orden (Checkout) - Traducida con i18n
-
 import { Store } from '../store.js';
 import { WhatsApp } from '../whatsapp.js';
+import { Api } from '../api.js';
 import { t } from '../i18n.js';
 
 export function renderCheckout(container, state) {
@@ -121,6 +120,68 @@ export function renderCheckout(container, state) {
     `;
   }
 
+  // Selector de Oficinas Físicas (si no se selecciona delivery y hay oficinas disponibles)
+  let officeSelectHtml = '';
+  const offices = config?.oficinas || [];
+  if (!order.delivery.selected && offices.length > 0) {
+    if (!order.delivery.oficina) {
+      Store.setOrderDeliveryOficina(offices[0].id);
+    }
+    
+    officeSelectHtml = `
+      <div class="glass-panel p-5 rounded-2xl border border-zinc-800 space-y-3">
+        <div class="flex items-center gap-2 text-xs font-bold text-zinc-300">
+          <i data-lucide="building" class="w-4 h-4 text-emerald-400"></i>
+          <span>${t('label_office_select')}</span>
+        </div>
+        <div class="relative">
+          <select id="select-checkout-office" class="glass-input w-full p-3.5 rounded-xl appearance-none cursor-pointer text-xs font-medium pr-10">
+            ${offices.map(o => `
+              <option value="${o.id}" ${order.delivery.oficina === o.id ? 'selected' : ''}>
+                ${o.nombre} (${o.direccion})
+              </option>
+            `).join('')}
+          </select>
+          <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-zinc-400">
+            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <p class="text-[10px] text-zinc-500 leading-normal">${t('label_office_select_sub')}</p>
+      </div>
+    `;
+  }
+
+  // Selector de línea de contacto de WhatsApp (si hay teléfonos configurados)
+  let whatsappSelectHtml = '';
+  const contacts = config?.telefonos_contacto || [];
+  if (contacts.length > 0) {
+    if (!order.contacto_whatsapp) {
+      Store.setOrderContactoWhatsApp(contacts[0].numero);
+    }
+    
+    whatsappSelectHtml = `
+      <div class="glass-panel p-5 rounded-2xl border border-zinc-800 space-y-3">
+        <div class="flex items-center gap-2 text-xs font-bold text-zinc-300">
+          <i data-lucide="phone-call" class="w-4 h-4 text-emerald-400"></i>
+          <span>${t('label_whatsapp_select')}</span>
+        </div>
+        <div class="relative">
+          <select id="select-checkout-whatsapp" class="glass-input w-full p-3.5 rounded-xl appearance-none cursor-pointer text-xs font-medium pr-10">
+            ${contacts.map(c => `
+              <option value="${c.numero}" ${order.contacto_whatsapp === c.numero ? 'selected' : ''}>
+                ${c.nombre} (${c.numero})
+              </option>
+            `).join('')}
+          </select>
+          <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-zinc-400">
+            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <p class="text-[10px] text-zinc-500 leading-normal">${t('label_whatsapp_select_sub')}</p>
+      </div>
+    `;
+  }
+
   container.innerHTML = `
     <div class="max-w-md mx-auto px-4 py-6 animate-fade-in">
       <!-- Barra superior / Navegación -->
@@ -133,8 +194,10 @@ export function renderCheckout(container, state) {
 
       <h2 class="text-2xl font-extrabold tracking-tight text-white mb-6">${t('checkout_title')}</h2>
 
-      <div class="space-y-6">
+      <div class="space-y-5">
         ${summaryHtml}
+        ${officeSelectHtml}
+        ${whatsappSelectHtml}
 
         <!-- Total General Fijo -->
         <div class="glass-panel p-5 rounded-3xl border-glow-emerald border bg-emerald-500/[0.02] flex items-center justify-between">
@@ -149,9 +212,9 @@ export function renderCheckout(container, state) {
         </div>
 
         <!-- Botón de Envío WhatsApp -->
-        <button id="btn-whatsapp-submit" class="btn-premium w-full py-4.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-2xl text-sm font-bold tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 mt-4">
+        <button id="btn-whatsapp-submit" class="btn-premium w-full py-4.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-2xl text-sm font-bold tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 mt-4 transition-all duration-300">
           <i data-lucide="message-square" class="w-5 h-5 text-zinc-950"></i>
-          <span>${t('btn_whatsapp')}</span>
+          <span id="btn-submit-text">${t('btn_whatsapp')}</span>
         </button>
 
         <p class="text-[10px] text-zinc-500 text-center leading-relaxed max-w-xs mx-auto">
@@ -171,7 +234,39 @@ export function renderCheckout(container, state) {
     Store.navigate(isRemesa ? 'remesa' : 'recarga');
   });
 
-  document.getElementById('btn-whatsapp-submit').addEventListener('click', () => {
+  if (offices.length > 0 && !order.delivery.selected) {
+    document.getElementById('select-checkout-office').addEventListener('change', (e) => {
+      Store.setOrderDeliveryOficina(e.target.value);
+    });
+  }
+
+  if (contacts.length > 0) {
+    document.getElementById('select-checkout-whatsapp').addEventListener('change', (e) => {
+      Store.setOrderContactoWhatsApp(e.target.value);
+    });
+  }
+
+  document.getElementById('btn-whatsapp-submit').addEventListener('click', async () => {
+    const btnSubmit = document.getElementById('btn-whatsapp-submit');
+    const btnText = document.getElementById('btn-submit-text');
+    
+    // Cambiar estado a cargando / registrando
+    btnSubmit.disabled = true;
+    btnSubmit.classList.add('opacity-70', 'cursor-wait');
+    btnText.innerText = t('label_saving_order');
+    
+    // Registrar el pedido pendiente en el Gist
+    try {
+      await Api.registerPendingOrder(order);
+    } catch (err) {
+      console.warn('Checkout: Falló persistencia del pedido, procediendo con WhatsApp igualmente.', err);
+    }
+    
+    // Restaurar botón y redirigir
+    btnSubmit.disabled = false;
+    btnSubmit.classList.remove('opacity-70', 'cursor-wait');
+    btnText.innerText = t('btn_whatsapp');
+    
     WhatsApp.sendOrder(order);
   });
 }

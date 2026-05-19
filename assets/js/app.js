@@ -14,14 +14,68 @@ import { renderAdmin } from './views/admin.js';
 // Variables de instalación PWA
 let deferredPrompt;
 
+// Comprobar la versión en el servidor para forzar actualizaciones de caché
+async function checkServerVersion() {
+  try {
+    const res = await fetch(`./version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (res.ok) {
+      const serverMeta = await res.json();
+      const localVersion = localStorage.getItem('moneycast_version');
+      
+      if (localVersion && localVersion !== serverMeta.version) {
+        console.log(`PWA: Nueva versión detectada en el servidor (${serverMeta.version}). Limpiando cachés...`);
+        
+        // 1. Borrar todas las bases de datos de Cache Storage
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          for (const key of keys) {
+            await caches.delete(key);
+          }
+        }
+        
+        // 2. Guardar la nueva versión en localStorage
+        localStorage.setItem('moneycast_version', serverMeta.version);
+        
+        // 3. Forzar actualización del Service Worker si existe
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          if (reg) {
+            await reg.update();
+          }
+        }
+        
+        // 4. Recargar limpiando la memoria del navegador
+        window.location.reload();
+      } else if (!localVersion) {
+        localStorage.setItem('moneycast_version', serverMeta.version);
+      }
+    }
+  } catch (err) {
+    console.warn('PWA: Error comprobando versión en el servidor:', err);
+  }
+}
+
 // 1. Inicialización de la Aplicación y Carga de Datos
 async function initApp() {
+  // Comprobar actualizaciones de código en el servidor
+  await checkServerVersion();
+
   // Registrar Service Worker para PWA
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
         .then(reg => {
           console.log('PWA: Service Worker registrado exitosamente.', reg.scope);
+          
+          // Forzar comprobación de actualización del SW en el servidor
+          reg.update();
+          
+          // Re-comprobar SW periódicamente cada 5 minutos
+          setInterval(() => {
+            console.log('PWA: Comprobando actualizaciones de Service Worker en el servidor...');
+            reg.update();
+            checkServerVersion();
+          }, 5 * 60 * 1000);
           
           // 1. Si ya hay un Service Worker esperando en segundo plano
           if (reg.waiting) {

@@ -5,6 +5,33 @@ import { t } from '../i18n.js';
 
 export function renderRecarga(container, state) {
   const { config, order } = state;
+
+  const fueraDeServicio = config?.fuera_de_servicio || { remesas: false, recargas: false };
+  if (fueraDeServicio.recargas) {
+    container.innerHTML = `
+      <div class="max-w-md mx-auto px-4 py-16 text-center animate-fade-in">
+        <div class="inline-flex p-4 bg-rose-500/10 rounded-full border border-rose-500/20 text-rose-400 mb-6 animate-pulse">
+          <i data-lucide="ban" class="w-12 h-12"></i>
+        </div>
+        <h2 class="text-2xl font-extrabold tracking-tight text-white mb-4">${t('label_fuera_de_servicio_title')}</h2>
+        <p class="text-sm text-zinc-400 leading-relaxed max-w-sm mx-auto mb-8">
+          ${t('msg_out_of_service_recargas')}
+        </p>
+        <button id="btn-out-back" class="btn-premium px-8 py-3.5 bg-white text-zinc-950 hover:bg-zinc-100 rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 mx-auto">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>${t('btn_back')}</span>
+        </button>
+      </div>
+    `;
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+    document.getElementById('btn-out-back').addEventListener('click', () => {
+      Store.navigate('home');
+    });
+    return;
+  }
+
   const operadores = config ? config.operadores_recarga : [];
   const deliveryBaseCost = config ? config.opciones_delivery.costo_base_usd : 3.00;
 
