@@ -1,17 +1,135 @@
-// Vista de Administración (Admin Panel) - Editor de Datos e implicit Gist ID
+// Vista de Administración (Admin Panel) - Bóveda de Seguridad & Editor de Datos
 
 import { Store } from '../store.js';
 import { Api, GIST_ID } from '../api.js';
 import { t } from '../i18n.js';
 
 export function renderAdmin(container, state) {
-  const { config, promos } = state;
-  
+  const { config, promos, adminToken } = state;
+
+  // CASO A: Bóveda Bloqueada (No hay token verificado en memoria RAM)
+  if (!adminToken) {
+    container.innerHTML = `
+      <div class="max-w-md mx-auto px-4 py-8 animate-fade-in pb-36">
+        <!-- Barra superior / Navegación -->
+        <div class="flex items-center justify-between mb-8">
+          <button id="btn-admin-back" class="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors flex items-center gap-1 text-sm font-medium">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> ${t('btn_back')}
+          </button>
+          <span class="text-xs uppercase tracking-widest text-zinc-500 font-bold">${t('nav_admin')}</span>
+        </div>
+
+        <!-- Tarjeta de la Bóveda -->
+        <div class="glass-panel p-6 rounded-3xl border border-zinc-800 space-y-6 text-center shadow-2xl relative overflow-hidden">
+          <div class="absolute -top-12 -left-12 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl"></div>
+          
+          <div class="mx-auto w-16 h-16 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-2xl flex items-center justify-center shadow-inner relative z-10">
+            <i id="vault-lock-icon" data-lucide="shield-alert" class="w-7 h-7 text-zinc-400 transition-all duration-300"></i>
+          </div>
+
+          <div class="space-y-2 relative z-10">
+            <h2 class="text-xl font-extrabold text-white tracking-tight">${t('vault_title')}</h2>
+            <p class="text-xs text-zinc-500 leading-relaxed px-2">${t('vault_subtitle')}</p>
+          </div>
+
+          <div class="space-y-4 pt-2 relative z-10 text-left">
+            <!-- Entrada de Token (PAT) -->
+            <div class="space-y-1.5">
+              <label class="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 pl-1">${t('label_token_required')}</label>
+              <input type="password" id="vault-token-input" class="glass-input w-full p-3.5 rounded-xl text-xs font-mono focus:outline-none" 
+                     placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+            </div>
+
+            <!-- Botón de Desbloqueo -->
+            <button type="button" id="btn-vault-unlock" class="btn-premium w-full py-4 bg-white text-zinc-950 font-bold hover:bg-zinc-100 rounded-xl text-xs tracking-widest uppercase shadow-xl flex items-center justify-center gap-2">
+              <i data-lucide="key-round" class="w-4 h-4 text-zinc-950"></i>
+              <span>${t('btn_unlock')}</span>
+            </button>
+
+            <!-- Retroalimentación / Estado -->
+            <div id="vault-status-container" class="hidden text-center p-3 rounded-xl border transition-all text-xs font-bold"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+
+    // Volver al home
+    document.getElementById('btn-admin-back').addEventListener('click', () => {
+      Store.navigate('home');
+    });
+
+    // Desbloquear Bóveda
+    const unlockBtn = document.getElementById('btn-vault-unlock');
+    const tokenInput = document.getElementById('vault-token-input');
+    const statusBox = document.getElementById('vault-status-container');
+    const lockIcon = document.getElementById('vault-lock-icon');
+
+    unlockBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+
+      if (!token) {
+        alert(t('alert_token_missing'));
+        return;
+      }
+
+      // Estado Cargando
+      unlockBtn.disabled = true;
+      tokenInput.disabled = true;
+      statusBox.className = "text-center p-3 rounded-xl border border-zinc-800 bg-zinc-900/50 text-zinc-400 animate-fade-in text-xs font-bold";
+      statusBox.innerText = t('msg_verifying');
+      statusBox.classList.remove('hidden');
+
+      if (lockIcon) {
+        lockIcon.classList.add('animate-pulse');
+        lockIcon.className = "w-7 h-7 text-emerald-400 animate-pulse";
+      }
+
+      try {
+        // Validar el token contra el Gist implícito
+        const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          // Token Válido! Almacenar en Store de forma exclusiva (Memoria RAM)
+          statusBox.className = "text-center p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 animate-fade-in text-xs font-bold";
+          statusBox.innerText = "¡Verificado con éxito! Desbloqueando...";
+          
+          setTimeout(() => {
+            Store.setAdminToken(token);
+          }, 1000);
+        } else {
+          throw new Error('Sin autorización para modificar este Gist');
+        }
+      } catch (err) {
+        // Token Inválido
+        unlockBtn.disabled = false;
+        tokenInput.disabled = false;
+        statusBox.className = "text-center p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 animate-fade-in text-xs font-bold";
+        statusBox.innerText = t('msg_invalid_token');
+
+        if (lockIcon) {
+          lockIcon.className = "w-7 h-7 text-red-400";
+        }
+      }
+    });
+
+    return;
+  }
+
+  // CASO B: Bóveda Desbloqueada (Visualizar todos los formularios)
   const tasas = config ? config.tasas_remesas : [];
   const operadores = config ? config.operadores_recarga : [];
   const promosList = promos || [];
 
-  // 1. Editor de Tasas (Remesas)
+  // Editor de Tasas (Remesas)
   const ratesEditorHtml = tasas.map((tasa, idx) => `
     <div class="glass-panel p-4 rounded-2xl border border-zinc-800 space-y-3 relative group">
       <!-- Botón Eliminar País -->
@@ -49,7 +167,7 @@ export function renderAdmin(container, state) {
     </div>
   `).join('');
 
-  // 2. Editor de Recargas (Operadores y Montos)
+  // Editor de Recargas (Operadores y Montos)
   const recargasEditorHtml = operadores.map((op, idx) => `
     <div class="glass-panel p-4 rounded-2xl border border-zinc-800 space-y-3 relative group">
       <!-- Botón Eliminar Operador -->
@@ -79,7 +197,7 @@ export function renderAdmin(container, state) {
     </div>
   `).join('');
 
-  // 3. Editor de Promociones
+  // Editor de Promociones
   const promosEditorHtml = promosList.map((promo, idx) => `
     <div class="glass-panel p-4 rounded-2xl border border-zinc-800 space-y-3 relative group">
       <!-- Botón Eliminar Promo -->
@@ -114,7 +232,10 @@ export function renderAdmin(container, state) {
         <button id="btn-admin-back" class="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors flex items-center gap-1 text-sm font-medium">
           <i data-lucide="arrow-left" class="w-4 h-4"></i> ${t('btn_back')}
         </button>
-        <span class="text-xs uppercase tracking-widest text-zinc-500 font-bold">${t('nav_admin')}</span>
+        <div class="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[9px] font-bold uppercase tracking-wider">
+          <i data-lucide="shield-check" class="w-3 h-3"></i>
+          <span>Bóveda Desbloqueada</span>
+        </div>
       </div>
 
       <div class="space-y-2 mb-6">
@@ -123,17 +244,6 @@ export function renderAdmin(container, state) {
       </div>
 
       <div class="space-y-6">
-        <!-- Tarjeta Informativa de la Base de Datos -->
-        <div class="glass-panel p-4.5 rounded-3xl border border-zinc-800 flex items-center gap-3.5">
-          <div class="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-400">
-            <i data-lucide="cloud-lightning" class="w-5 h-5"></i>
-          </div>
-          <div>
-            <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Base de Datos Conectada</p>
-            <p class="text-xs font-bold text-white">Gist ID: <span class="text-zinc-400 font-mono text-[10px]">${GIST_ID}</span></p>
-          </div>
-        </div>
-
         <!-- 1. Editor de Países y Tasas (Remesas) -->
         <div class="space-y-4">
           <div class="flex items-center justify-between">
@@ -173,26 +283,12 @@ export function renderAdmin(container, state) {
           </div>
         </div>
 
-        <!-- 4. Publicación Remota Con Token Obligatorio en Vivo -->
+        <!-- 4. Publicación Remota Con Un Clic (Token en Memoria) -->
         <div class="pt-6 border-t border-zinc-900 space-y-4">
-          <div class="glass-panel p-5 rounded-3xl border border-zinc-800 space-y-3.5">
-            <div class="flex items-center gap-2.5 text-zinc-300 font-bold text-sm">
-              <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400 animate-pulse-subtle"></i>
-              <span>Autorizar Guardado Remoto</span>
-            </div>
-
-            <!-- GitHub Token (PAT) - OBLIGATORIO Y NO ALMACENADO -->
-            <div class="space-y-1.5">
-              <label class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">${t('label_token_required')}</label>
-              <input type="password" id="admin-github-token-live" class="glass-input w-full p-3.5 rounded-xl text-xs focus:outline-none" 
-                     placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-            </div>
-
-            <button id="btn-publish-gist" class="btn-premium w-full py-4 bg-white text-zinc-950 font-bold hover:bg-zinc-100 rounded-2xl text-xs tracking-widest uppercase shadow-xl flex items-center justify-center gap-2 mt-2">
-              <i data-lucide="globe" class="w-4 h-4 text-zinc-950"></i>
-              <span>${t('btn_publish')}</span>
-            </button>
-          </div>
+          <button id="btn-publish-gist" class="btn-premium w-full py-4 bg-white text-zinc-950 font-bold hover:bg-zinc-100 rounded-2xl text-xs tracking-widest uppercase shadow-xl flex items-center justify-center gap-2">
+            <i data-lucide="globe" class="w-4 h-4 text-zinc-950"></i>
+            <span>${t('btn_publish')}</span>
+          </button>
           
           <div id="publish-status-container" class="hidden text-center p-3 rounded-xl border">
             <p id="publish-status-text" class="text-xs font-bold"></p>
@@ -308,21 +404,11 @@ export function renderAdmin(container, state) {
     });
   });
 
-  // BOTÓN DE PUBLICACIÓN REMOTA CON TOKEN EN VIVO (PATCH Gist en GitHub)
+  // BOTÓN DE PUBLICACIÓN REMOTA CON UN CLIC (Usa el Token PAT ya verificado en memoria RAM)
   document.getElementById('btn-publish-gist').addEventListener('click', async () => {
-    const activeToken = document.getElementById('admin-github-token-live').value.trim(); // Leído en el momento
-    
     const filename = 'moneycast.txt';
     const statusContainer = document.getElementById('publish-status-container');
     const statusText = document.getElementById('publish-status-text');
-
-    if (!activeToken) {
-      alert(t('alert_token_missing'));
-      statusContainer.className = "text-center p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 animate-fade-in";
-      statusText.innerText = t('alert_token_missing');
-      statusContainer.classList.remove('hidden');
-      return;
-    }
 
     // Actualizar última fecha de modificación
     if (config) {
@@ -333,7 +419,6 @@ export function renderAdmin(container, state) {
     statusText.innerText = t('msg_publishing');
     statusContainer.classList.remove('hidden');
 
-    // Estructura unificada en un solo archivo "moneycast.txt"
     const payload = {
       files: {
         [filename]: {
@@ -349,7 +434,7 @@ export function renderAdmin(container, state) {
       const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${activeToken}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)

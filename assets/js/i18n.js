@@ -109,7 +109,14 @@ const translations = {
     // PWA Update
     pwa_update_title: "Actualización disponible",
     pwa_update_desc: "Recarga la app para aplicar las mejoras.",
-    btn_pwa_update: "Actualizar"
+    btn_pwa_update: "Actualizar",
+
+    // Admin Vault
+    vault_title: "Bóveda del Administrador",
+    vault_subtitle: "Acceso Restringido. Ingrese su Token de GitHub (PAT) para verificar sus credenciales y desbloquear las configuraciones.",
+    btn_unlock: "Verificar y Desbloquear",
+    msg_verifying: "Verificando token...",
+    msg_invalid_token: "Token inválido o sin permisos para esta base de datos."
   },
   en: {
     // Global / Navbar
@@ -217,7 +224,14 @@ const translations = {
     // PWA Update
     pwa_update_title: "Update available",
     pwa_update_desc: "Reload the app to apply the improvements.",
-    btn_pwa_update: "Update"
+    btn_pwa_update: "Update",
+
+    // Admin Vault
+    vault_title: "Administrator Vault",
+    vault_subtitle: "Restricted Access. Enter your GitHub Token (PAT) to verify credentials and unlock settings.",
+    btn_unlock: "Verify and Unlock",
+    msg_verifying: "Verifying token...",
+    msg_invalid_token: "Invalid token or no permissions for this database."
   },
   nl: {
     // Global / Navbar
@@ -325,7 +339,14 @@ const translations = {
     // PWA Update
     pwa_update_title: "Update beschikbaar",
     pwa_update_desc: "Herlaad de app om de verbeteringen toe te passen.",
-    btn_pwa_update: "Updaten"
+    btn_pwa_update: "Updaten",
+
+    // Admin Vault
+    vault_title: "Beheerderskluis",
+    vault_subtitle: "Beperkte Toegang. Voer uw GitHub-token (PAT) in om de inloggegevens te verifiëren en de instellingen te ontgrendelen.",
+    btn_unlock: "Verifiëren en Ontgrendelen",
+    msg_verifying: "Token verifiëren...",
+    msg_invalid_token: "Ongeldig token of geen rechten voor deze database."
   }
 };
 

@@ -184,27 +184,40 @@ export function renderRecarga(container, state) {
 
     geoStatus.innerText = t('geo_loading');
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        Store.setDeliveryCoordenadas(latitude, longitude);
-        
-        const coordsText = `📍 GPS (Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)})`;
-        const currentText = textareaDireccion.value;
-        const newText = currentText 
-          ? `${coordsText}\n${currentText.replace(/📍 GPS \(Lat:.*, Lng:.*\)\n?/g, '')}` 
-          : coordsText;
-        
-        textareaDireccion.value = newText;
-        Store.setDeliveryDireccion(newText);
-        geoStatus.innerText = t('geo_success');
-      },
-      (err) => {
-        console.error(err);
-        geoStatus.innerText = t('geo_error');
-      },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
+    // Intentar primero con alta precisión; si falla por timeout o hardware, reintentar con baja precisión (WiFi/Celdas)
+    const optionsHigh = { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 };
+    const optionsLow = { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 };
+
+    function getCoords(options, isFallback) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          Store.setDeliveryCoordenadas(latitude, longitude);
+          
+          const coordsText = `📍 GPS (Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)})`;
+          const currentText = textareaDireccion.value;
+          const newText = currentText 
+            ? `${coordsText}\n${currentText.replace(/📍 GPS \(Lat:.*, Lng:.*\)\n?/g, '')}` 
+            : coordsText;
+          
+          textareaDireccion.value = newText;
+          Store.setDeliveryDireccion(newText);
+          geoStatus.innerText = t('geo_success');
+        },
+        (err) => {
+          console.warn(`Geolocation: Error (isFallback=${isFallback}):`, err);
+          if (!isFallback) {
+            console.log('Geolocation: Reintentando con precisión de red/WiFi...');
+            getCoords(optionsLow, true);
+          } else {
+            geoStatus.innerText = t('geo_error');
+          }
+        },
+        options
+      );
+    }
+
+    getCoords(optionsHigh, false);
   });
 
   document.getElementById('btn-recarga-submit').addEventListener('click', () => {

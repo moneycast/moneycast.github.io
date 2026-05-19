@@ -14,6 +14,9 @@ const state = {
   // Estado de navegación
   currentView: 'home', // 'home', 'remesa', 'recarga', 'checkout'
 
+  // Token de GitHub (PAT) guardado estrictamente en memoria RAM
+  adminToken: null,
+
   // Estado de la orden actual
   order: {
     type: null, // 'remesa' | 'recarga'
@@ -95,7 +98,20 @@ export const Store = {
   // Navegar a otra vista
   navigate(view) {
     state.currentView = view;
-    // Si volvemos al home, no reiniciamos la orden necesariamente, para permitir correcciones.
+    // Si navegamos fuera del panel de administración, destruimos inmediatamente el token de la memoria RAM
+    if (view !== 'admin') {
+      state.adminToken = null;
+    }
+    this.notify();
+  },
+
+  setAdminToken(token) {
+    state.adminToken = token;
+    this.notify();
+  },
+
+  clearAdminToken() {
+    state.adminToken = null;
     this.notify();
   },
 
