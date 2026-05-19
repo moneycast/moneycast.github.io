@@ -115,6 +115,9 @@ export const Api = {
 
       const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, { 
         cache: 'no-store',
+        headers: {
+          'Authorization': `Bearer ${CLIENT_WRITE_TOKEN}`
+        },
         signal: controller.signal
       });
       

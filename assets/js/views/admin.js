@@ -105,7 +105,16 @@ export function renderAdmin(container, state) {
         clearTimeout(timeoutId);
 
         if (response.ok) {
-          // Token Válido! Almacenar en Store de forma exclusiva (Memoria RAM)
+          // Token Válido — Verificar que tenga el scope 'gist' (solo para tokens clásicos ghp_)
+          const scopes = response.headers.get('x-oauth-scopes');
+          const isFineGrained = token.startsWith('github_pat_');
+          if (scopes !== null && !isFineGrained) {
+            const scopeList = scopes.split(',').map(s => s.trim());
+            if (!scopeList.includes('gist')) {
+              throw new Error(t('msg_invalid_token') + ' (scope "gist" requerido)');
+            }
+          }
+
           statusBox.className = "text-center p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 animate-fade-in text-xs font-bold";
           statusBox.innerText = "¡Verificado con éxito! Desbloqueando...";
           
@@ -777,11 +786,7 @@ export function renderAdmin(container, state) {
       if (response.ok) {
         // Recargar datos y re-renderizar para reflejar el estado actual
         const data = await Api.loadAppData();
-        Store.setData(data.config, data.promos);
-        if (data.pedidos) {
-          Store.getState().pedidos = data.pedidos;
-        }
-        Store.notify();
+        Store.setData(data.config, data.promos, data.pedidos);
       } else {
         throw new Error(`GitHub devuelto con código: ${response.status}`);
       }
@@ -859,11 +864,7 @@ export function renderAdmin(container, state) {
         statusText.innerText = t('msg_publish_success');
         
         const data = await Api.loadAppData();
-        Store.setData(data.config, data.promos);
-        if (data.pedidos) {
-          Store.getState().pedidos = data.pedidos;
-        }
-        Store.notify();
+        Store.setData(data.config, data.promos, data.pedidos);
       } else {
         throw new Error(`GitHub API devuelta con código: ${response.status}`);
       }

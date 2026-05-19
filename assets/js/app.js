@@ -139,7 +139,7 @@ async function initApp() {
   Store.setLoading(true);
   try {
     const data = await Api.loadAppData();
-    Store.setData(data.config, data.promos);
+    Store.setData(data.config, data.promos, data.pedidos);
   } catch (error) {
     Store.setError(error.message);
   }
