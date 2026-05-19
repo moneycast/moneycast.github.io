@@ -36,12 +36,11 @@ async function checkServerVersion() {
         // 2. Guardar la nueva versión en localStorage
         localStorage.setItem('moneycast_version', serverMeta.version);
         
-        // 3. Forzar actualización del Service Worker si existe
+        // 3. Forzar actualización del Service Worker si existe (no-bloqueante)
         if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          if (reg) {
-            await reg.update();
-          }
+          navigator.serviceWorker.ready.then(reg => {
+            if (reg) reg.update();
+          }).catch(err => console.warn('PWA: Error actualizando Service Worker:', err));
         }
         
         // 4. Recargar limpiando la memoria del navegador
@@ -57,8 +56,8 @@ async function checkServerVersion() {
 
 // 1. Inicialización de la Aplicación y Carga de Datos
 async function initApp() {
-  // Comprobar actualizaciones de código en el servidor
-  await checkServerVersion();
+  // Comprobar actualizaciones de código en el servidor en segundo plano sin bloquear
+  checkServerVersion();
 
   // Registrar Service Worker para PWA
   if ('serviceWorker' in navigator) {

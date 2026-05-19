@@ -109,7 +109,16 @@ export const Api = {
   async loadAppData() {
     try {
       console.log(`API: Cargando datos desde API Gist de GitHub Implícito (ID: ${GIST_ID})`);
-      const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, { cache: 'no-store' });
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 segundos de timeout
+
+      const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, { 
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
       
       if (res.ok) {
         const gistData = await res.json();
