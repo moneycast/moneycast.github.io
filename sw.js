@@ -1,50 +1,67 @@
 const CACHE_NAME = 'moneycast-v1';
-const urlsToCache = [
+const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './assets/icons/icon-512x512.png',
   './assets/css/style.css',
   './assets/js/app.js',
   './assets/js/store.js',
-  './assets/js/views/crud.js',
-  './assets/js/views/sales.js',
-  './assets/js/utils/whatsapp.js'
+  './assets/js/api.js',
+  './assets/js/whatsapp.js',
+  './assets/js/views/home.js',
+  './assets/js/views/remesa.js',
+  './assets/js/views/recarga.js',
+  './assets/js/views/checkout.js',
+  './assets/js/views/admin.js'
 ];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        // We catch errors so the SW installs even if some files are missing initially
-        return cache.addAll(urlsToCache).catch(err => console.warn('Cache warning:', err));
-      })
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
   );
 });
 
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
-  );
-});
-
-self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('fetch', (e) => {
+  if (e.request.url.startsWith(self.location.origin)) {
+    e.respondWith(
+      caches.match(e.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(e.request).then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(e.request, responseToCache);
+          });
+          return response;
+        });
+      })
+    );
+  }
+});
+
+// Escuchador para SKIP_WAITING enviado desde el cliente
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
