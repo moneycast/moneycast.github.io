@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moneycast-v1';
+const CACHE_NAME = 'moneycast-v2';
 const ASSETS = [
   './',
   './index.html',

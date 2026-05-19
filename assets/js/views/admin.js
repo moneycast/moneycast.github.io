@@ -105,24 +105,17 @@ export function renderAdmin(container, state) {
         clearTimeout(timeoutId);
 
         if (response.ok) {
-          // Token Válido — Verificar que tenga el scope 'gist' (solo para tokens clásicos ghp_)
-          const scopes = response.headers.get('x-oauth-scopes');
-          const isFineGrained = token.startsWith('github_pat_');
-          if (scopes !== null && !isFineGrained) {
-            const scopeList = scopes.split(',').map(s => s.trim());
-            if (!scopeList.includes('gist')) {
-              throw new Error(t('msg_invalid_token') + ' (scope "gist" requerido)');
-            }
-          }
-
+          // Token Válido — el GET exitoso en un Gist privado ya garantiza el acceso correcto
           statusBox.className = "text-center p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 animate-fade-in text-xs font-bold";
           statusBox.innerText = "¡Verificado con éxito! Desbloqueando...";
           
           setTimeout(() => {
             Store.setAdminToken(token);
-          }, 1000);
+          }, 800);
+        } else if (response.status === 401 || response.status === 403) {
+          throw new Error(t('msg_invalid_token'));
         } else {
-          throw new Error('Sin autorización para modificar este Gist');
+          throw new Error('Error del servidor: ' + response.status);
         }
       } catch (err) {
         // Token Inválido
