@@ -283,17 +283,17 @@ export function renderAdmin(container, state) {
   const sortedPedidos = [...(state.pedidos || [])].sort((a, b) => {
     if (a.estado === 'pendiente' && b.estado !== 'pendiente') return -1;
     if (a.estado !== 'pendiente' && b.estado === 'pendiente') return 1;
-    return new Date(b.fecha) - new Date(a.fecha);
+    return new Date(b.fecha || 0) - new Date(a.fecha || 0);
   });
 
   const ordersHtml = sortedPedidos.map(p => {
     const isRemesa = p.type === 'remesa';
-    const dateFormatted = new Date(p.fecha).toLocaleString();
+    const dateFormatted = p.fecha ? new Date(p.fecha).toLocaleString() : 'Fecha no disponible';
     
     let logisticsText = '';
-    if (p.delivery.selected) {
-      logisticsText = `🚚 Delivery: <span class="text-zinc-300 font-medium">${p.delivery.direccion}</span>`;
-    } else if (p.delivery.oficina) {
+    if (p.delivery?.selected) {
+      logisticsText = `🚚 Delivery: <span class="text-zinc-300 font-medium">${p.delivery.direccion || ''}</span>`;
+    } else if (p.delivery?.oficina) {
       const office = (config?.oficinas || []).find(o => o.id === p.delivery.oficina);
       logisticsText = `🏢 Retiro en Oficina: <span class="text-zinc-300 font-medium">${office ? office.nombre : p.delivery.oficina}</span>`;
     } else {
@@ -304,19 +304,19 @@ export function renderAdmin(container, state) {
     let totalUSD = 0;
     if (isRemesa) {
       const r = p.remesa;
-      totalUSD = r.montoEnviar + (p.delivery.selected ? deliveryBaseCost : 0.00);
+      totalUSD = (r?.montoEnviar || 0) + (p.delivery?.selected ? deliveryBaseCost : 0.00);
       detailsText = `
-        <p class="text-zinc-400">País: <strong class="text-white">${r.pais.pais}</strong></p>
-        <p class="text-zinc-400">Recibe: <strong class="text-emerald-400">${r.montoRecibir.toLocaleString()} ${r.pais.moneda}</strong></p>
-        <p class="text-zinc-400">Envía: <strong class="text-zinc-200">$${r.montoEnviar.toFixed(2)} USD</strong></p>
+        <p class="text-zinc-400">País: <strong class="text-white">${r?.pais?.pais || 'N/A'}</strong></p>
+        <p class="text-zinc-400">Recibe: <strong class="text-emerald-400">${r?.montoRecibir?.toLocaleString() || 0} ${r?.pais?.moneda || ''}</strong></p>
+        <p class="text-zinc-400">Envía: <strong class="text-zinc-200">$${r?.montoEnviar?.toFixed(2) || '0.00'} USD</strong></p>
       `;
     } else {
       const r = p.recarga;
-      totalUSD = r.monto + (p.delivery.selected ? deliveryBaseCost : 0.00);
+      totalUSD = (r?.monto || 0) + (p.delivery?.selected ? deliveryBaseCost : 0.00);
       detailsText = `
-        <p class="text-zinc-400">Operador: <strong class="text-white">${r.operador.nombre}</strong></p>
-        <p class="text-zinc-400">Móvil: <strong class="text-blue-400">${r.telefono}</strong></p>
-        <p class="text-zinc-400">Recarga: <strong class="text-zinc-200">$${r.monto.toFixed(2)} USD</strong></p>
+        <p class="text-zinc-400">Operador: <strong class="text-white">${r?.operador?.nombre || 'N/A'}</strong></p>
+        <p class="text-zinc-400">Móvil: <strong class="text-blue-400">${r?.telefono || ''}</strong></p>
+        <p class="text-zinc-400">Recarga: <strong class="text-zinc-200">$${r?.monto?.toFixed(2) || '0.00'} USD</strong></p>
       `;
     }
     
