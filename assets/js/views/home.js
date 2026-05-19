@@ -30,17 +30,6 @@ export function renderHome(container, state) {
     `;
   }
 
-  container.innerHTML = `
-    <div class="max-w-md mx-auto px-4 py-6">
-      <!-- Hero / Header -->
-      <div class="text-center py-10 animate-fade-in">
-        <span class="text-[10px] tracking-[0.2em] uppercase font-bold text-zinc-500">${t('brand_subtitle')}</span>
-        <h1 class="text-4xl font-extrabold tracking-tight text-white mt-2 mb-3 text-glow">${t('home_title')}</h1>
-        <p class="text-sm text-zinc-400 font-light max-w-xs mx-auto leading-relaxed">
-          ${t('home_desc')}
-        </p>
-      </div>
-
   const fueraDeServicio = state.config?.fuera_de_servicio || { remesas: false, recargas: false };
   const remesaFuera = fueraDeServicio.remesas;
   const recargaFuera = fueraDeServicio.recargas;
