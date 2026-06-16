@@ -1,105 +1,37 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="h-full">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Moneycast - Remesas y Recargas con Delivery</title>
-  
-  <!-- SEO Tags -->
-  <meta name="description" content="Envía remesas y realiza recargas con delivery en efectivo directo a tu domicilio. La solución de accesibilidad serverless más rápida y segura.">
-  <meta name="theme-color" content="#09090b">
-  
-  <!-- Manifest & Favicons -->
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="assets/img/icon-192.png">
-  <link rel="icon" type="image/png" href="assets/img/icon-192.png">
-  
-  <!-- Tailwind CSS CDN -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Remesas PWA</title>
+  <meta name="description" content="Aplicación de remesas PWA, responsive y optimizada para GitHub Pages" />
+  <link rel="manifest" href="manifest.json" />
+  <!-- Tailwind via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    // Tailwind config for custom colors / dark mode if needed
     tailwind.config = {
+      darkMode: 'media',
       theme: {
         extend: {
           colors: {
-            zinc: {
-              950: '#09090b'
-            }
-          }
-        }
-      }
+            primary: '#0d9488', // teal-600 as primary example
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col">
+  <div id="app" class="flex-1 flex flex-col"></div>
+  <script src="src/app.js"></script>
+  <script>
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('Service Worker registered'))
+        .catch(err => console.error('SW registration failed', err));
     }
   </script>
-
-  <!-- Lucide Icons CDN -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  
-  <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="assets/css/style.css">
-  
-  <!-- iOS PWA Capabilities -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-</head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col justify-between selection:bg-white selection:text-zinc-950">
-
-  <!-- Main Container (App wrapper, centered for desktop mockup look) -->
-  <div class="w-full max-w-md mx-auto min-h-screen flex flex-col justify-between border-x border-zinc-900 bg-zinc-950/40 relative">
-    
-    <!-- Top Status / Branding Bar (Optional, Minimalist) -->
-    <header class="h-14 border-b border-zinc-900/60 px-6 flex items-center justify-between sticky top-0 bg-zinc-950/80 backdrop-blur-md z-40">
-      <div class="flex items-center gap-2">
-        <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse-subtle"></div>
-        <span class="text-xs font-semibold tracking-[0.15em] text-zinc-400">MONEYCAST</span>
-      </div>
-      
-      <!-- Language Selector & PWA installation -->
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-1" id="lang-selector">
-          <button data-lang="es" class="text-[9px] font-extrabold px-2 py-1 rounded-md transition-all text-zinc-500 hover:text-zinc-200">ES</button>
-          <button data-lang="en" class="text-[9px] font-extrabold px-2 py-1 rounded-md transition-all text-zinc-500 hover:text-zinc-200">EN</button>
-          <button data-lang="nl" class="text-[9px] font-extrabold px-2 py-1 rounded-md transition-all text-zinc-500 hover:text-zinc-200">NL</button>
-        </div>
-        
-        <!-- Admin Settings button -->
-        <button id="btn-admin-settings" class="text-zinc-500 hover:text-zinc-200 p-1.5 transition-all focus:outline-none" title="Ajustes / Admin">
-          <i data-lucide="settings" class="w-4 h-4"></i>
-        </button>
-        
-        <!-- PWA Install Banner trigger (Subtle) -->
-        <button id="btn-install-pwa" class="hidden text-[10px] bg-white text-zinc-950 font-bold px-3 py-1.5 rounded-full uppercase tracking-wider hover:opacity-95 transition-opacity">
-          Instalar App
-        </button>
-      </div>
-    </header>
-
-    <!-- Main View Content Area -->
-    <main id="app" class="flex-1 pb-24 overflow-y-auto">
-      <!-- Loading view baseline -->
-      <div class="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <div class="w-8 h-8 border-2 border-white/10 border-t-white rounded-full animate-spin"></div>
-        <p class="text-xs text-zinc-500 tracking-wider uppercase font-semibold">Cargando Moneycast...</p>
-      </div>
-    </main>
-
-    <!-- Bottom Navigation Bar (High contrast/minimalist iOS design) -->
-    <nav class="h-16 border-t border-zinc-900 bg-zinc-950/80 backdrop-blur-md fixed bottom-0 left-0 right-0 max-w-md mx-auto flex items-center justify-around px-6 z-50">
-      <button id="nav-home" class="flex flex-col items-center justify-center gap-1 text-zinc-500 hover:text-white transition-colors active-nav-item">
-        <i data-lucide="home" class="w-5 h-5"></i>
-        <span class="text-[9px] font-semibold uppercase tracking-wider">Inicio</span>
-      </button>
-      <button id="nav-remesa" class="flex flex-col items-center justify-center gap-1 text-zinc-500 hover:text-white transition-colors">
-        <i data-lucide="send" class="w-5 h-5"></i>
-        <span class="text-[9px] font-semibold uppercase tracking-wider">Remesa</span>
-      </button>
-      <button id="nav-recarga" class="flex flex-col items-center justify-center gap-1 text-zinc-500 hover:text-white transition-colors">
-        <i data-lucide="smartphone" class="w-5 h-5"></i>
-        <span class="text-[9px] font-semibold uppercase tracking-wider">Recarga</span>
-      </button>
-    </nav>
-
-  </div>
-
-  <!-- Bootstrapping modular script -->
-  <script type="module" src="assets/js/app.js"></script>
 </body>
 </html>
