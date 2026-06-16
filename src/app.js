@@ -467,7 +467,56 @@ function renderSendForm() {
     } else {
       url = `https://api.whatsapp.com/send?text=${encoded}`;
     }
-    window.open(url, '_blank');
+
+    // ── Confirmation Modal ──
+    const overlay = el('div', 'fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm');
+    const modal = el('div', 'bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all scale-95 opacity-0 duration-200');
+    
+    const header = el('div', 'p-4 border-b dark:border-gray-700 flex justify-between items-center', {}, 
+      el('h2', 'text-lg font-bold text-gray-900 dark:text-white', {}, 'Confirmar envío')
+    );
+
+    const body = el('div', 'p-4 space-y-3 text-sm text-gray-700 dark:text-gray-300', {},
+      el('p', '', {}, 'Revisa los datos antes de enviar la petición por WhatsApp:'),
+      el('div', 'bg-gray-50 dark:bg-gray-900 p-3 rounded border dark:border-gray-700 font-mono text-xs', {}, 
+        el('div', '', {}, `Tarjeta: ${card}`),
+        el('div', '', {}, `Confirmación: ${confirm}`),
+        el('div', '', {}, `Monto: $${amount}`)
+      )
+    );
+
+    const footer = el('div', 'p-4 flex gap-3 justify-end border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50', {},
+      el('button', 'px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition', { type: 'button' }, 'Cancelar'),
+      el('button', 'px-4 py-2 bg-primary text-white font-medium rounded hover:bg-primary/80 transition', { type: 'button' }, 'Confirmar y Enviar')
+    );
+
+    const [cancelBtn, confirmBtn] = footer.children;
+
+    modal.append(header, body, footer);
+    overlay.append(modal);
+    document.body.appendChild(overlay);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        modal.classList.remove('scale-95', 'opacity-0');
+        modal.classList.add('scale-100', 'opacity-100');
+      });
+    });
+
+    const closeModal = () => {
+      modal.classList.remove('scale-100', 'opacity-100');
+      modal.classList.add('scale-95', 'opacity-0');
+      setTimeout(() => overlay.remove(), 200);
+    };
+
+    cancelBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
+
+    confirmBtn.addEventListener('click', () => {
+      closeModal();
+      window.open(url, '_blank');
+    });
   });
 
   return container;
