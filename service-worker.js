@@ -70,8 +70,7 @@ async function handleShareTarget(request) {
     console.error('[SW] Share target error:', err);
   }
 
-  // Use absolute URL so the redirect works correctly on GitHub Pages
-  const base = self.registration.scope;
-  return Response.redirect(base + 'index.html?shared=1', 303);
+  // Redirect to absolute index so it works regardless of scope resolution
+  return Response.redirect('/index.html?shared=1', 303);
 }
 
