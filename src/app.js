@@ -1,7 +1,8 @@
-// src/app.js
-// Simple SPA for Remesas PWA
+// src/app.js – Remesas PWA SPA
 
-// Utility to create elements with Tailwind classes
+// ──────────────────────────────────────────────
+// Utility: create DOM elements with Tailwind classes
+// ──────────────────────────────────────────────
 function el(tag, classes = '', attrs = {}, ...children) {
   const element = document.createElement(tag);
   if (classes) element.className = classes;
@@ -13,136 +14,323 @@ function el(tag, classes = '', attrs = {}, ...children) {
   return element;
 }
 
-// Render the send remittance form
+// ──────────────────────────────────────────────
+// Card number formatter: "9238129971831286" → "9238 1299 7183 1286"
+// ──────────────────────────────────────────────
+function formatCardNumber(raw) {
+  const digits = raw.replace(/\D/g, '');
+  return digits.replace(/(.{4})/g, '$1 ').trim();
+}
+
+// ──────────────────────────────────────────────
+// Extract best 16-digit card number from OCR text
+// Handles common OCR artifacts (O→0, l→1, space noise, etc.)
+// ──────────────────────────────────────────────
+function extractCardNumber(text) {
+  // Normalize common OCR mistakes on digits
+  const normalized = text
+    .replace(/[Oo]/g, '0')
+    .replace(/[lI]/g, '1')
+    .replace(/[Ss]/g, '5')
+    .replace(/[Bb]/g, '8');
+
+  // Try to find a 16-digit group (with optional spaces/dashes every 4 digits)
+  const patterns = [
+    // 4+space+4+space+4+space+4
+    /\b(\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4})\b/g,
+    // 16 consecutive digits
+    /\b(\d{16})\b/g,
+    // 13–19 digits (catch-all)
+    /\b(\d{13,19})\b/g,
+  ];
+
+  for (const pattern of patterns) {
+    const matches = [...normalized.matchAll(pattern)];
+    if (matches.length > 0) {
+      // Pick the match whose digit count is closest to 16
+      const best = matches.reduce((prev, curr) => {
+        const pd = prev[1].replace(/\D/g, '').length;
+        const cd = curr[1].replace(/\D/g, '').length;
+        return Math.abs(cd - 16) < Math.abs(pd - 16) ? curr : prev;
+      });
+      return best[1].replace(/\D/g, '');
+    }
+  }
+  return null;
+}
+
+// ──────────────────────────────────────────────
+// OCR via Tesseract.js (runs entirely in the browser)
+// ──────────────────────────────────────────────
+async function ocrWithTesseract(imageFile, statusEl) {
+  if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js not loaded');
+
+  statusEl.textContent = '🔍 Analizando imagen…';
+
+  const { data } = await Tesseract.recognize(imageFile, 'eng', {
+    logger: (m) => {
+      if (m.status === 'recognizing text') {
+        statusEl.textContent = `🔍 OCR: ${Math.round(m.progress * 100)}%`;
+      }
+    },
+    // Hint Tesseract to treat the image as a single uniform block of text
+    tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+  });
+
+  return data.text || '';
+}
+
+// ──────────────────────────────────────────────
+// OCR via OCR.space free API (fallback)
+// ──────────────────────────────────────────────
+async function ocrWithOcrSpace(imageFile, statusEl) {
+  statusEl.textContent = '☁️ Enviando a servidor OCR…';
+
+  const formData = new FormData();
+  formData.append('apikey', 'helloworld');
+  formData.append('file', imageFile);
+  formData.append('language', 'eng');
+  formData.append('isOverlayRequired', 'false');
+  formData.append('scale', 'true');
+  formData.append('isTable', 'false');
+  formData.append('OCREngine', '2'); // Engine 2 is better for digits
+
+  const response = await fetch('https://api.ocr.space/parse/image', {
+    method: 'POST',
+    body: formData,
+  });
+  const result = await response.json();
+  if (result.IsErroredOnProcessing) throw new Error(result.ErrorMessage?.[0] || 'OCR.space error');
+  return result.ParsedResults?.[0]?.ParsedText || '';
+}
+
+// ──────────────────────────────────────────────
+// Main: scan card from image file using multiple strategies
+// ──────────────────────────────────────────────
+async function scanCardFromImage(imageFile, cardInput, statusEl) {
+  statusEl.classList.remove('hidden', 'text-red-500', 'text-green-600');
+  statusEl.classList.add('text-blue-500');
+
+  let digits = null;
+
+  // ── Strategy 1: Tesseract.js (local, no network needed)
+  try {
+    const text = await ocrWithTesseract(imageFile, statusEl);
+    console.log('[Tesseract] raw text:', text);
+    digits = extractCardNumber(text);
+    if (digits) console.log('[Tesseract] found digits:', digits);
+  } catch (err) {
+    console.warn('[Tesseract] failed:', err.message);
+  }
+
+  // ── Strategy 2: OCR.space API (cloud fallback)
+  if (!digits) {
+    try {
+      const text = await ocrWithOcrSpace(imageFile, statusEl);
+      console.log('[OCR.space] raw text:', text);
+      digits = extractCardNumber(text);
+      if (digits) console.log('[OCR.space] found digits:', digits);
+    } catch (err) {
+      console.warn('[OCR.space] failed:', err.message);
+    }
+  }
+
+  // ── Strategy 3: Read the raw digit sequence from the file name or EXIF (not applicable here)
+  // If all else fails, show an error
+  if (!digits || digits.length < 13) {
+    statusEl.textContent = '❌ No se pudo leer el número. Ingrésalo manualmente.';
+    statusEl.classList.replace('text-blue-500', 'text-red-500');
+    return;
+  }
+
+  // Format and fill the input
+  const formatted = formatCardNumber(digits);
+  cardInput.value = formatted;
+  cardInput.dispatchEvent(new Event('input'));
+
+  statusEl.textContent = `✅ Tarjeta detectada: ${formatted}`;
+  statusEl.classList.replace('text-blue-500', 'text-green-600');
+}
+
+// ──────────────────────────────────────────────
+// Render the remittance send form
+// ──────────────────────────────────────────────
 function renderSendForm() {
   const container = el('div', 'p-4 max-w-md mx-auto');
-
-  const title = el('h1', 'text-2xl font-bold mb-4 text-primary', {}, 'Enviar remesa');
+  const title = el('h1', 'text-2xl font-bold mb-6 text-primary', {}, 'Enviar remesa');
 
   const form = el('form', 'space-y-4', { id: 'remitForm' });
 
-  const cardInput = el('input', 'flex-1 w-full p-2 border rounded', {
+  // ── Card number input ──
+  const cardLabel = el('label', 'block text-sm font-medium mb-1', { for: 'cardInput' }, 'Número de tarjeta');
+
+  const cardInput = el('input', 'flex-1 w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary', {
+    id: 'cardInput',
     type: 'tel',
-    placeholder: 'Número de tarjeta (xxxx xxxx xxxx xxxx)',
+    placeholder: 'xxxx xxxx xxxx xxxx',
     required: 'required',
-    pattern: '[0-9]{4} ?[0-9]{4} ?[0-9]{4} ?[0-9]{4}',
+    maxlength: '19',
+    autocomplete: 'cc-number',
     name: 'card',
   });
 
-  // Hidden file input for scanning
-  const fileInput = el('input', '', {
+  // Auto-format while typing: insert spaces every 4 digits
+  cardInput.addEventListener('input', (e) => {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 16);
+    e.target.value = v.replace(/(.{4})/g, '$1 ').trim();
+  });
+
+  // Hidden file input (camera or gallery)
+  const fileInput = el('input', 'hidden', {
+    id: 'cardFileInput',
     type: 'file',
     accept: 'image/*',
     capture: 'environment',
-    style: 'display:none',
   });
 
   // Scan button
-  const scanButton = el('button', 'ml-2 px-3 py-2 bg-primary text-white rounded hover:bg-primary/80 transition', { type: 'button' }, 'Escanear tarjeta');
+  const scanBtn = el(
+    'button',
+    'flex items-center gap-1 px-3 py-2 bg-primary text-white text-sm rounded hover:bg-primary/80 active:scale-95 transition whitespace-nowrap',
+    { type: 'button', id: 'scanCardBtn' },
+    '📷 Escanear'
+  );
 
-  // Wrap card input and scan controls
-  const cardWrapper = el('div', 'flex items-center', {}, cardInput, scanButton, fileInput);
+  const cardRow = el('div', 'flex items-center gap-2', {}, cardInput, scanBtn, fileInput);
 
-  // Scan button handler
-  scanButton.addEventListener('click', () => {
-    fileInput.click();
-  });
+  // Status / feedback line
+  const statusEl = el('p', 'text-sm mt-1 hidden', { id: 'ocrStatus' }, '');
+  statusEl.classList.remove('hidden'); // always visible space reserved
 
-  // File input change handler – use Tesseract.js to OCR the image
+  scanBtn.addEventListener('click', () => fileInput.click());
+
+  // ── Image Resizer (to prevent 1MB limit on OCR.space and speed up Tesseract)
+  function resizeImage(file, maxDim = 1200) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (!blob) return reject(new Error('Canvas to Blob failed'));
+            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+          }, 'image/jpeg', 0.8);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    statusEl.classList.remove('hidden', 'text-red-500', 'text-green-600');
+    statusEl.classList.add('text-blue-500');
+    statusEl.textContent = '⚙️ Procesando imagen…';
+
     try {
-      // Read file as base64 for OCR.space API
-      const reader = new FileReader();
-      const base64 = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = err => reject(err);
-        reader.readAsDataURL(file);
-      });
-      // Call OCR.space free API (demo key)
-      const response = await fetch('https://api.ocr.space/parse/image', {
-        method: 'POST',
-        body: new URLSearchParams({
-          apikey: 'helloworld',
-          base64Image: `data:image/jpeg;base64,${base64}`,
-          language: 'eng',
-          isTable: 'false',
-        }),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-      const result = await response.json();
-      if (result.IsErroredOnProcessing) {
-        console.error('OCR API error', result.ErrorMessage);
-        return;
-      }
-      const parsedText = result.ParsedResults?.[0]?.ParsedText || '';
-      const digits = parsedText.replace(/\D/g, '').trim();
-      cardInput.value = digits;
-      cardInput.dispatchEvent(new Event('input'));
+      const resizedFile = await resizeImage(file);
+      await scanCardFromImage(resizedFile, cardInput, statusEl);
     } catch (err) {
-      console.error('OCR processing error', err);
+      console.error('Resize error:', err);
+      statusEl.textContent = '❌ Error al procesar la imagen.';
+      statusEl.classList.replace('text-blue-500', 'text-red-500');
     }
+    // Reset so re-selecting same file triggers change event again
+    fileInput.value = '';
   });
 
-
-  const confirmInput = el('input', 'w-full p-2 border rounded', {
+  // ── Confirmation number ──
+  const confirmLabel = el('label', 'block text-sm font-medium mb-1', { for: 'confirmInput' }, 'Número de confirmación');
+  const confirmInput = el('input', 'w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary', {
+    id: 'confirmInput',
     type: 'text',
-    placeholder: 'Número de confirmación',
+    placeholder: 'Código de confirmación',
     required: 'required',
     name: 'confirm',
   });
 
-  const amountInput = el('input', 'w-full p-2 border rounded', {
+  // ── Amount ──
+  const amountLabel = el('label', 'block text-sm font-medium mb-1', { for: 'amountInput' }, 'Monto a enviar');
+  const amountInput = el('input', 'w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary', {
+    id: 'amountInput',
     type: 'number',
-    placeholder: 'Monto a enviar',
+    placeholder: '0.00',
     required: 'required',
     min: '0',
     step: '0.01',
     name: 'amount',
   });
 
-  const phoneInput = el('input', 'w-full p-2 border rounded', {
+  // ── Recipient phone ──
+  const phoneLabel = el('label', 'block text-sm font-medium mb-1', { for: 'phoneInput' }, 'Teléfono destinatario');
+  const phoneInput = el('input', 'w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary', {
+    id: 'phoneInput',
     type: 'tel',
-    placeholder: 'Teléfono destinatario (opcional, incluye código país)',
+    placeholder: '+53... (opcional)',
     name: 'phone',
   });
 
-  const submit = el('button', 'w-full bg-primary text-white py-2 rounded hover:bg-primary/80 transition', {
-    type: 'submit',
-  }, 'Enviar vía WhatsApp');
+  // ── Submit ──
+  const submit = el(
+    'button',
+    'w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/80 active:scale-95 transition',
+    { type: 'submit', id: 'submitBtn' },
+    '📩 Enviar vía WhatsApp'
+  );
 
-  form.append(cardWrapper, confirmInput, amountInput, phoneInput, submit);
+  form.append(
+    el('div', '', {}, cardLabel, cardRow, statusEl),
+    el('div', '', {}, confirmLabel, confirmInput),
+    el('div', '', {}, amountLabel, amountInput),
+    el('div', '', {}, phoneLabel, phoneInput),
+    submit
+  );
   container.append(title, form);
 
-  // Form submit handler
-  form.addEventListener('submit', function (e) {
+  // ── Form submit handler ──
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const card = cardInput.value.trim();
+    const card    = cardInput.value.trim();
     const confirm = confirmInput.value.trim();
-    const amount = amountInput.value.trim();
-    const phone = phoneInput.value.trim();
+    const amount  = amountInput.value.trim();
+    const phone   = phoneInput.value.trim();
 
-    // Build message
-    const lines = [];
-    lines.push('----');
-    lines.push(`Tarjeta: ${card}`);
-    lines.push(`Confirmación: ${confirm}`);
-    lines.push(`Monto: $${amount}`);
-    lines.push('----');
-    const text = lines.join('\n');
+    const lines = [
+      '────────────────',
+      `💳 Tarjeta: ${card}`,
+      `🔑 Confirmación: ${confirm}`,
+      `💵 Monto: $${amount}`,
+      '────────────────',
+    ];
+    const encoded = encodeURIComponent(lines.join('\n'));
 
-    // Encode for URL
-    const encoded = encodeURIComponent(text);
-    let url = '';
+    let url;
     if (phone) {
-      // Use wa.me with phone
       const cleanPhone = phone.replace(/[^0-9]/g, '');
       url = `https://wa.me/${cleanPhone}?text=${encoded}`;
     } else {
-      // Fallback to generic send link (opens web WhatsApp)
       url = `https://api.whatsapp.com/send?text=${encoded}`;
     }
     window.open(url, '_blank');
@@ -151,7 +339,9 @@ function renderSendForm() {
   return container;
 }
 
+// ──────────────────────────────────────────────
 // Simple hash router
+// ──────────────────────────────────────────────
 function router() {
   const route = location.hash.replace('#', '') || 'send';
   const app = document.getElementById('app');
@@ -165,5 +355,3 @@ function router() {
 
 window.addEventListener('hashchange', router);
 window.addEventListener('load', router);
-
-// Optional dark mode toggle (system prefers‑color‑scheme handled by Tailwind)
