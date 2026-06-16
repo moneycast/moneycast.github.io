@@ -52,18 +52,17 @@ function renderSendForm() {
   fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const imgData = reader.result;
-      try {
-        const { data: { text } } = await Tesseract.recognize(imgData, 'eng');
-        const digits = text.replace(/\D/g, '');
-        cardInput.value = digits;
-      } catch (err) {
-        console.error('OCR error', err);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Use Tesseract directly on the File object (handles blobs)
+      const { data: { text } } = await Tesseract.recognize(file, 'eng');
+      // Extract only digits (remove spaces, newlines, etc.)
+      const digits = text.replace(/\D/g, '').trim();
+      // Fill the card input and trigger an input event so any listeners react
+      cardInput.value = digits;
+      cardInput.dispatchEvent(new Event('input'));
+    } catch (err) {
+      console.error('OCR error', err);
+    }
   });
 
 
