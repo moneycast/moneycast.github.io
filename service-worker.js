@@ -9,6 +9,16 @@ const ASSETS_TO_CACHE = [
   './assets/icon-512x512.png',
 ];
 
+// Helper: log inside SW and forward logs to all clients
+function swLog(...args) {
+  try {
+    console.log('[SW]', ...args);
+    self.clients.matchAll().then(clients => clients.forEach(c => c.postMessage({ swLog: args.map(a => typeof a === 'string' ? a : JSON.stringify(a)) })));
+  } catch (e) {
+    console.log('[SW] log error', e);
+  }
+}
+
 // Instalar el Service Worker y guardar recursos en caché
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -34,12 +44,14 @@ self.addEventListener('activate', event => {
 // Interceptar peticiones
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+  swLog('fetch for', event.request.method, url.pathname, 'headers:', event.request.headers.get('content-type'));
 
   // ── Handle Web Share Target POST (accept POSTs to index or any multipart/form-data within scope)
   if (event.request.method === 'POST') {
     const contentType = event.request.headers.get('content-type') || '';
     const isMultipart = contentType.includes('multipart/form-data');
     const isIndexPath = url.pathname.endsWith('index.html') || url.pathname === '/' || url.pathname === '';
+    swLog('POST detected. isMultipart=', isMultipart, 'isIndexPath=', isIndexPath);
     if (isMultipart || isIndexPath) {
       event.respondWith(handleShareTarget(event.request));
       return;
@@ -53,9 +65,12 @@ self.addEventListener('fetch', event => {
 });
 
 async function handleShareTarget(request) {
+  swLog('handleShareTarget start');
   try {
     const formData = await request.formData();
+    swLog('formData keys:', [...formData.keys()]);
     const imageFile = formData.get('image');
+    swLog('imageFile:', imageFile && imageFile.name, imageFile && imageFile.size);
 
     if (imageFile && imageFile instanceof File) {
       const cache = await caches.open(SHARED_IMAGE_CACHE);
@@ -65,12 +80,20 @@ async function handleShareTarget(request) {
           headers: { 'Content-Type': imageFile.type || 'image/jpeg' }
         })
       );
+      swLog('cached shared image');
     }
   } catch (err) {
     console.error('[SW] Share target error:', err);
+    swLog('Share target error:', String(err));
   }
 
-  // Redirect to absolute index so it works regardless of scope resolution
-  return Response.redirect('/index.html?shared=1', 303);
+  swLog('opening client /index.html?shared=1');
+  try {
+    await self.clients.openWindow('/index.html?shared=1');
+  } catch (e) {
+    swLog('openWindow failed', String(e));
+  }
+  // Return a simple 200 so fetch callers don't see network-abort errors
+  return new Response('', { status: 200, statusText: 'OK' });
 }
 
