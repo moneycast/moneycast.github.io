@@ -21,13 +21,51 @@ function renderSendForm() {
 
   const form = el('form', 'space-y-4', { id: 'remitForm' });
 
-  const cardInput = el('input', 'w-full p-2 border rounded', {
+  const cardInput = el('input', 'flex-1 w-full p-2 border rounded', {
     type: 'tel',
     placeholder: 'Número de tarjeta (xxxx xxxx xxxx xxxx)',
     required: 'required',
     pattern: '[0-9]{4} ?[0-9]{4} ?[0-9]{4} ?[0-9]{4}',
     name: 'card',
   });
+
+  // Hidden file input for scanning
+  const fileInput = el('input', '', {
+    type: 'file',
+    accept: 'image/*',
+    capture: 'environment',
+    style: 'display:none',
+  });
+
+  // Scan button
+  const scanButton = el('button', 'ml-2 px-3 py-2 bg-primary text-white rounded hover:bg-primary/80 transition', { type: 'button' }, 'Escanear tarjeta');
+
+  // Wrap card input and scan controls
+  const cardWrapper = el('div', 'flex items-center', {}, cardInput, scanButton, fileInput);
+
+  // Scan button handler
+  scanButton.addEventListener('click', () => {
+    fileInput.click();
+  });
+
+  // File input change handler – use Tesseract.js to OCR the image
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const imgData = reader.result;
+      try {
+        const { data: { text } } = await Tesseract.recognize(imgData, 'eng');
+        const digits = text.replace(/\D/g, '');
+        cardInput.value = digits;
+      } catch (err) {
+        console.error('OCR error', err);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+
 
   const confirmInput = el('input', 'w-full p-2 border rounded', {
     type: 'text',
@@ -55,7 +93,7 @@ function renderSendForm() {
     type: 'submit',
   }, 'Enviar vía WhatsApp');
 
-  form.append(cardInput, confirmInput, amountInput, phoneInput, submit);
+  form.append(cardWrapper, confirmInput, amountInput, phoneInput, submit);
   container.append(title, form);
 
   // Form submit handler
