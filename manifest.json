@@ -18,5 +18,19 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "image",
+          "accept": ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/*"]
+        }
+      ]
+    }
+  }
 }
+

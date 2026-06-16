@@ -746,7 +746,79 @@ window.addEventListener('hashchange', router);
 window.addEventListener('load', () => {
   router();
   initTesseractWorker();
+  checkForSharedImage();
 });
+
+// ──────────────────────────────────────────────
+// Web Share Target: check if app was opened with a shared image
+// ──────────────────────────────────────────────
+async function checkForSharedImage() {
+  // Only run if the URL contains the ?shared=1 flag set by the SW redirect
+  if (!location.search.includes('shared=1') && !location.hash.includes('shared=1')) return;
+
+  try {
+    const cache = await caches.open('remesas-shared-image-v1');
+    const response = await cache.match('/shared-image');
+    if (!response) return;
+
+    const blob = await response.blob();
+    const file = new File([blob], 'shared_image.jpg', { type: blob.type || 'image/jpeg' });
+
+    // Remove the shared image from cache so it doesn't re-trigger on next open
+    await cache.delete('/shared-image');
+
+    // Show scanning feedback while form loads
+    // Wait a tick for the DOM to be ready after router()
+    setTimeout(async () => {
+      const statusEl = document.getElementById('ocrStatus');
+      const cardInput = document.getElementById('cardInput');
+
+      if (!statusEl || !cardInput) return;
+
+      statusEl.classList.remove('hidden', 'text-red-500', 'text-green-600');
+      statusEl.classList.add('text-blue-500');
+      statusEl.textContent = '📤 Imagen recibida. Analizando…';
+
+      try {
+        const resizedFile = await resizeImageBlob(file);
+        await scanCardFromImage(resizedFile, cardInput, statusEl);
+      } catch (err) {
+        console.error('[Share Target] OCR error:', err);
+        statusEl.textContent = '❌ Error al procesar la imagen compartida.';
+        statusEl.classList.replace('text-blue-500', 'text-red-500');
+      }
+    }, 600);
+  } catch (err) {
+    console.error('[Share Target] Error reading shared image cache:', err);
+  }
+}
+
+// Standalone resize helper that accepts a Blob/File directly (no FileReader needed)
+function resizeImageBlob(file, maxDim = 1200) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > height) {
+        if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+      } else {
+        if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => {
+        if (!blob) return reject(new Error('Canvas toBlob failed'));
+        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+      }, 'image/jpeg', 0.85);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
 // ──────────────────────────────────────────────
 // PWA Installation Banner
