@@ -60,6 +60,79 @@ function extractCardNumber(text) {
 }
 
 // ──────────────────────────────────────────────
+// Local Storage Manager
+// ──────────────────────────────────────────────
+const STORAGE_KEY = 'remesas_history_v1';
+
+function getOperations() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.error('Error reading history', e);
+    return [];
+  }
+}
+
+function saveOperations(operations) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(operations));
+}
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+function addOperation(card, confirm, amount, phone) {
+  const operations = getOperations();
+  const newOp = {
+    id: generateId(),
+    date: new Date().toISOString(),
+    card,
+    confirm,
+    amount,
+    phone
+  };
+  operations.unshift(newOp);
+  saveOperations(operations);
+}
+
+function updateOperation(id, updatedData) {
+  let operations = getOperations();
+  operations = operations.filter(op => op.id !== id);
+  const newOp = { ...updatedData, id: generateId(), date: new Date().toISOString() };
+  operations.unshift(newOp);
+  saveOperations(operations);
+}
+
+function deleteOperation(id) {
+  let operations = getOperations();
+  operations = operations.filter(op => op.id !== id);
+  saveOperations(operations);
+}
+
+function importOperations(importedArray) {
+  const current = getOperations();
+  const currentIds = new Set(current.map(op => op.id));
+  
+  const newOps = importedArray.filter(op => !currentIds.has(op.id));
+  if (newOps.length > 0) {
+    saveOperations([...newOps, ...current]);
+  }
+  return newOps.length;
+}
+
+function exportOperations() {
+  const ops = getOperations();
+  const blob = new Blob([JSON.stringify(ops, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `remesas_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ──────────────────────────────────────────────
 // Background Tesseract.js Worker
 // ──────────────────────────────────────────────
 let ocrWorker = null;
@@ -515,10 +588,125 @@ function renderSendForm() {
 
     confirmBtn.addEventListener('click', () => {
       closeModal();
+      addOperation(card, confirm, amount, phone); // Save to local storage
       window.open(url, '_blank');
+      form.reset();
+      location.hash = '#history'; // Navigate to history to see the new entry
     });
   });
 
+  return container;
+}
+
+// ──────────────────────────────────────────────
+// History Section
+// ──────────────────────────────────────────────
+function renderHistory() {
+  const container = el('div', 'p-4 max-w-md mx-auto w-full pb-24 md:pb-8');
+
+  const header = el('div', 'flex justify-between items-center mb-6');
+  const title = el('h1', 'text-2xl font-bold text-gray-900 dark:text-white', {}, 'Historial');
+  
+  const actionsContainer = el('div', 'flex gap-2');
+  
+  const exportBtn = el('button', 'p-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition', { title: 'Exportar JSON' }, el('span', 'material-symbols-outlined', {}, 'download'));
+  const importBtn = el('button', 'p-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition', { title: 'Importar JSON' }, el('span', 'material-symbols-outlined', {}, 'upload'));
+  
+  const fileInput = el('input', 'hidden', { type: 'file', accept: 'application/json' });
+  
+  actionsContainer.append(fileInput, importBtn, exportBtn);
+  header.append(title, actionsContainer);
+
+  exportBtn.addEventListener('click', exportOperations);
+  importBtn.addEventListener('click', () => fileInput.click());
+  
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (Array.isArray(data)) {
+          const added = importOperations(data);
+          alert(`Importación completada. Se añadieron ${added} operaciones nuevas.`);
+          // refresh history
+          const newContainer = renderHistory();
+          container.replaceWith(newContainer);
+        } else {
+          alert('Formato JSON inválido.');
+        }
+      } catch (err) {
+        alert('Error al leer el archivo JSON.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  const listContainer = el('div', 'space-y-4');
+  const operations = getOperations();
+
+  if (operations.length === 0) {
+    listContainer.append(el('div', 'text-center text-gray-500 py-10', {}, 'No hay operaciones registradas.'));
+  } else {
+    operations.forEach(op => {
+      const cardEl = el('div', 'bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-100 dark:border-gray-700 relative');
+      
+      const dateStr = new Date(op.date).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+      
+      const headRow = el('div', 'flex justify-between items-start mb-2');
+      const amountEl = el('div', 'text-lg font-bold text-primary', {}, `$${op.amount}`);
+      const dateEl = el('div', 'text-xs text-gray-500', {}, dateStr);
+      headRow.append(amountEl, dateEl);
+      
+      const bodyRow = el('div', 'text-sm text-gray-700 dark:text-gray-300 space-y-1 mb-4');
+      bodyRow.append(
+        el('div', '', {}, el('span', 'font-medium', {}, 'Tarjeta: '), op.card),
+        el('div', '', {}, el('span', 'font-medium', {}, 'Confirmación: '), op.confirm)
+      );
+
+      const actionRow = el('div', 'flex gap-2 justify-end');
+      const editBtn = el('button', 'px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-semibold rounded hover:bg-blue-100 dark:hover:bg-blue-800/50 transition', {}, 'Editar');
+      const deleteBtn = el('button', 'px-3 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold rounded hover:bg-red-100 dark:hover:bg-red-800/50 transition', {}, 'Eliminar');
+      
+      actionRow.append(editBtn, deleteBtn);
+      
+      // Delete logic
+      deleteBtn.addEventListener('click', () => {
+        if (confirm('¿Seguro que deseas eliminar este registro?')) {
+          deleteOperation(op.id);
+          cardEl.remove();
+          if (listContainer.children.length === 0) {
+            listContainer.append(el('div', 'text-center text-gray-500 py-10', {}, 'No hay operaciones registradas.'));
+          }
+        }
+      });
+
+      // Edit logic
+      editBtn.addEventListener('click', () => {
+        // Native prompts for simplicity (as requested to just edit)
+        const newCard = prompt('Editar Tarjeta:', op.card);
+        if (newCard === null) return; // cancelled
+        const newConfirm = prompt('Editar Confirmación:', op.confirm);
+        if (newConfirm === null) return;
+        const newAmount = prompt('Editar Monto:', op.amount);
+        if (newAmount === null) return;
+        
+        if (newCard !== op.card || newConfirm !== op.confirm || newAmount !== op.amount) {
+          updateOperation(op.id, { card: newCard, confirm: newConfirm, amount: newAmount, phone: op.phone });
+          // refresh history
+          const newContainer = renderHistory();
+          container.replaceWith(newContainer);
+        }
+      });
+
+      cardEl.append(headRow, bodyRow, actionRow);
+      listContainer.append(cardEl);
+    });
+  }
+
+  container.append(header, listContainer);
   return container;
 }
 
@@ -529,11 +717,27 @@ function router() {
   const route = location.hash.replace('#', '') || 'send';
   const app = document.getElementById('app');
   app.innerHTML = '';
+  
   if (route === 'send') {
     app.appendChild(renderSendForm());
+  } else if (route === 'history') {
+    app.appendChild(renderHistory());
   } else {
     app.appendChild(el('div', 'p-4', {}, 'Página no encontrada'));
   }
+
+  // Update nav UI dynamically
+  ['send', 'history'].forEach(r => {
+    const desktop = document.getElementById(`nav-${r}-desktop`);
+    const mobile = document.getElementById(`nav-${r}-mobile`);
+    if (r === route) {
+      if (desktop) desktop.className = 'flex items-center gap-3 p-3 rounded-lg bg-primary/10 text-primary font-medium transition';
+      if (mobile) mobile.className = 'flex-1 flex flex-col items-center py-2 text-primary transition';
+    } else {
+      if (desktop) desktop.className = 'flex items-center gap-3 p-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition';
+      if (mobile) mobile.className = 'flex-1 flex flex-col items-center py-2 text-gray-500 hover:text-primary transition';
+    }
+  });
 }
 
 window.addEventListener('hashchange', router);
