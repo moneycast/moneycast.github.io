@@ -53,15 +53,37 @@ function renderSendForm() {
     const file = e.target.files[0];
     if (!file) return;
     try {
-      // Use Tesseract directly on the File object (handles blobs)
-      const { data: { text } } = await Tesseract.recognize(file, 'eng');
-      // Extract only digits (remove spaces, newlines, etc.)
-      const digits = text.replace(/\D/g, '').trim();
-      // Fill the card input and trigger an input event so any listeners react
+      // Read file as base64 for OCR.space API
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = err => reject(err);
+        reader.readAsDataURL(file);
+      });
+      // Call OCR.space free API (demo key)
+      const response = await fetch('https://api.ocr.space/parse/image', {
+        method: 'POST',
+        body: new URLSearchParams({
+          apikey: 'helloworld',
+          base64Image: `data:image/jpeg;base64,${base64}`,
+          language: 'eng',
+          isTable: 'false',
+        }),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      const result = await response.json();
+      if (result.IsErroredOnProcessing) {
+        console.error('OCR API error', result.ErrorMessage);
+        return;
+      }
+      const parsedText = result.ParsedResults?.[0]?.ParsedText || '';
+      const digits = parsedText.replace(/\D/g, '').trim();
       cardInput.value = digits;
       cardInput.dispatchEvent(new Event('input'));
     } catch (err) {
-      console.error('OCR error', err);
+      console.error('OCR processing error', err);
     }
   });
 
