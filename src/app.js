@@ -60,6 +60,31 @@ function extractCardNumber(text) {
 }
 
 // ──────────────────────────────────────────────
+// Background Tesseract.js Worker
+// ──────────────────────────────────────────────
+let ocrWorker = null;
+let currentOcrStatusEl = null;
+
+async function initTesseractWorker() {
+  if (typeof Tesseract === 'undefined') return;
+  try {
+    ocrWorker = await Tesseract.createWorker('eng', 1, {
+      logger: (m) => {
+        if (currentOcrStatusEl && m.status === 'recognizing text') {
+          currentOcrStatusEl.textContent = `🔍 OCR: ${Math.round(m.progress * 100)}%`;
+        }
+      }
+    });
+    await ocrWorker.setParameters({
+      tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+    });
+    console.log('[Tesseract] Worker ready in background.');
+  } catch (err) {
+    console.error('[Tesseract] Init error:', err);
+  }
+}
+
+// ──────────────────────────────────────────────
 // OCR via Tesseract.js (runs entirely in the browser)
 // ──────────────────────────────────────────────
 async function ocrWithTesseract(imageFile, statusEl) {
@@ -67,13 +92,20 @@ async function ocrWithTesseract(imageFile, statusEl) {
 
   statusEl.textContent = '🔍 Analizando imagen…';
 
+  if (ocrWorker) {
+    currentOcrStatusEl = statusEl;
+    const { data } = await ocrWorker.recognize(imageFile);
+    currentOcrStatusEl = null;
+    return data.text || '';
+  }
+
+  // Fallback if worker not ready
   const { data } = await Tesseract.recognize(imageFile, 'eng', {
     logger: (m) => {
       if (m.status === 'recognizing text') {
         statusEl.textContent = `🔍 OCR: ${Math.round(m.progress * 100)}%`;
       }
     },
-    // Hint Tesseract to treat the image as a single uniform block of text
     tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
   });
 
@@ -456,7 +488,10 @@ function router() {
 }
 
 window.addEventListener('hashchange', router);
-window.addEventListener('load', router);
+window.addEventListener('load', () => {
+  router();
+  initTesseractWorker();
+});
 
 // ──────────────────────────────────────────────
 // PWA Installation Banner
