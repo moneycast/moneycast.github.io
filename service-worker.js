@@ -35,10 +35,15 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // ── Handle Web Share Target POST ──
-  if (event.request.method === 'POST' && url.pathname.endsWith('index.html')) {
-    event.respondWith(handleShareTarget(event.request));
-    return;
+  // ── Handle Web Share Target POST (accept POSTs to index or any multipart/form-data within scope)
+  if (event.request.method === 'POST') {
+    const contentType = event.request.headers.get('content-type') || '';
+    const isMultipart = contentType.includes('multipart/form-data');
+    const isIndexPath = url.pathname.endsWith('index.html') || url.pathname === '/' || url.pathname === '';
+    if (isMultipart || isIndexPath) {
+      event.respondWith(handleShareTarget(event.request));
+      return;
+    }
   }
 
   // ── Normal cache-first strategy ──
@@ -53,7 +58,6 @@ async function handleShareTarget(request) {
     const imageFile = formData.get('image');
 
     if (imageFile && imageFile instanceof File) {
-      // Store the shared image in a dedicated cache slot
       const cache = await caches.open(SHARED_IMAGE_CACHE);
       await cache.put(
         '/shared-image',
@@ -66,7 +70,8 @@ async function handleShareTarget(request) {
     console.error('[SW] Share target error:', err);
   }
 
-  // Redirect to the app with a flag so it knows to process the shared image
-  return Response.redirect('./index.html#send?shared=1', 303);
+  // Use absolute URL so the redirect works correctly on GitHub Pages
+  const base = self.registration.scope;
+  return Response.redirect(base + 'index.html?shared=1', 303);
 }
 
