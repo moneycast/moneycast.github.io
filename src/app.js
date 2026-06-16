@@ -202,7 +202,91 @@ function renderSendForm() {
   const statusEl = el('p', 'text-sm mt-1 hidden', { id: 'ocrStatus' }, '');
   statusEl.classList.remove('hidden'); // always visible space reserved
 
-  scanBtn.addEventListener('click', () => fileInput.click());
+  const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
+  scanBtn.addEventListener('click', () => {
+    if (isMobile) {
+      fileInput.click();
+    } else {
+      openWebcamModal(cardInput, statusEl, resizeImage, fileInput);
+    }
+  });
+
+  // ── Desktop Webcam Modal ──
+  function openWebcamModal(cardInput, statusEl, resizeImage, fileInput) {
+    const overlay = el('div', 'fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4');
+    const modal = el('div', 'bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg overflow-hidden flex flex-col');
+    const header = el('div', 'p-4 border-b flex justify-between items-center', {}, 
+      el('h2', 'text-lg font-bold', {}, 'Cámara web'),
+      el('button', 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200', { type: 'button' }, '✕')
+    );
+    const video = el('video', 'w-full bg-black object-contain max-h-[60vh]', { autoplay: 'true', playsinline: 'true' });
+    const footer = el('div', 'p-4 flex gap-2 justify-end bg-gray-50 dark:bg-gray-900 border-t');
+    
+    const captureBtn = el('button', 'px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 transition', { type: 'button' }, '📸 Tomar foto');
+    const fallbackBtn = el('button', 'px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition', { type: 'button' }, '📁 Archivo');
+    
+    footer.append(fallbackBtn, captureBtn);
+    modal.append(header, video, footer);
+    overlay.append(modal);
+    document.body.appendChild(overlay);
+
+    let stream = null;
+    const closeBtn = header.querySelector('button');
+
+    function close() {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      overlay.remove();
+    }
+
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) close(); });
+
+    fallbackBtn.addEventListener('click', () => {
+      close();
+      fileInput.click();
+    });
+
+    // Request camera
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(s => {
+        stream = s;
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        console.error('Camera error', err);
+        close();
+        alert('No se pudo acceder a la cámara. Usa la opción de archivo.');
+        fileInput.click();
+      });
+
+    captureBtn.addEventListener('click', () => {
+      if (!video.videoWidth) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(async (blob) => {
+        close();
+        if (!blob) return;
+        const file = new File([blob], 'webcam_capture.jpg', { type: 'image/jpeg' });
+        
+        statusEl.classList.remove('hidden', 'text-red-500', 'text-green-600');
+        statusEl.classList.add('text-blue-500');
+        statusEl.textContent = '⚙️ Procesando imagen de cámara…';
+        
+        try {
+          const resizedFile = await resizeImage(file);
+          await scanCardFromImage(resizedFile, cardInput, statusEl);
+        } catch (err) {
+          console.error('Resize error:', err);
+          statusEl.textContent = '❌ Error al procesar la imagen.';
+          statusEl.classList.replace('text-blue-500', 'text-red-500');
+        }
+      }, 'image/jpeg', 0.9);
+    });
+  }
 
   // ── Image Resizer (to prevent 1MB limit on OCR.space and speed up Tesseract)
   function resizeImage(file, maxDim = 1200) {
@@ -355,3 +439,65 @@ function router() {
 
 window.addEventListener('hashchange', router);
 window.addEventListener('load', router);
+
+// ──────────────────────────────────────────────
+// PWA Installation Banner
+// ──────────────────────────────────────────────
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent the mini-infobar from appearing on mobile
+  e.preventDefault();
+  // Stash the event so it can be triggered later.
+  deferredPrompt = e;
+  // Update UI notify the user they can install the PWA
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  if (document.getElementById('pwa-install-banner')) return;
+
+  const banner = el('div', 'fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 flex items-center justify-between z-50 border border-gray-100 dark:border-gray-700 transition-transform transform translate-y-20 opacity-0 duration-300', { id: 'pwa-install-banner' });
+  
+  const textInfo = el('div', 'flex flex-col', {}, 
+    el('span', 'font-bold text-gray-900 dark:text-white text-sm', {}, 'Instalar aplicación'),
+    el('span', 'text-xs text-gray-500 dark:text-gray-400', {}, 'Acceso rápido desde tu pantalla')
+  );
+
+  const actions = el('div', 'flex items-center gap-2');
+  const installBtn = el('button', 'px-3 py-1.5 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary/80 transition', { type: 'button' }, 'Instalar');
+  const dismissBtn = el('button', 'p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition', { type: 'button', 'aria-label': 'Descartar' }, '✕');
+
+  actions.append(installBtn, dismissBtn);
+  banner.append(textInfo, actions);
+  document.body.appendChild(banner);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      banner.classList.remove('translate-y-20', 'opacity-0');
+    });
+  });
+
+  dismissBtn.addEventListener('click', () => {
+    banner.classList.add('translate-y-20', 'opacity-0');
+    setTimeout(() => banner.remove(), 300);
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`Instalación: ${outcome}`);
+    deferredPrompt = null;
+    banner.classList.add('translate-y-20', 'opacity-0');
+    setTimeout(() => banner.remove(), 300);
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.remove();
+  deferredPrompt = null;
+  console.log('PWA instalada con éxito');
+});
