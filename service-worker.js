@@ -1,4 +1,4 @@
-const CACHE_NAME = 'remesas-pwa-v1';
+const CACHE_NAME = 'remesas-pwa-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,8 +6,6 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
   './assets/icon-192x192.png',
   './assets/icon-512x512.png',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js'
 ];
 
 // Instalar el Service Worker y guardar recursos en caché

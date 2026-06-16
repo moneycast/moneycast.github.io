@@ -714,7 +714,9 @@ function renderHistory() {
 // Simple hash router
 // ──────────────────────────────────────────────
 function router() {
-  const route = location.hash.replace('#', '') || 'send';
+  // Normalize hash: remove '#', leading '/', and trim whitespace
+  const rawHash = location.hash.replace(/^#\/?/, '').trim();
+  const route = rawHash || 'send';
   const app = document.getElementById('app');
   app.innerHTML = '';
   
