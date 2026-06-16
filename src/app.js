@@ -173,6 +173,8 @@ function renderSendForm() {
     autocomplete: 'cc-number',
     name: 'card',
   });
+  // Fix cardInput styling for dark mode explicitly
+  cardInput.className = 'flex-1 w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-primary';
 
   // Auto-format while typing: insert spaces every 4 digits
   cardInput.addEventListener('input', (e) => {
@@ -180,23 +182,34 @@ function renderSendForm() {
     e.target.value = v.replace(/(.{4})/g, '$1 ').trim();
   });
 
-  // Hidden file input (camera or gallery)
+  // Hidden file inputs
   const fileInput = el('input', 'hidden', {
     id: 'cardFileInput',
     type: 'file',
     accept: 'image/*',
     capture: 'environment',
   });
+  const galleryInput = el('input', 'hidden', {
+    id: 'galleryFileInput',
+    type: 'file',
+    accept: 'image/*',
+  });
 
-  // Scan button
+  // Buttons
   const scanBtn = el(
     'button',
-    'flex items-center gap-1 px-3 py-2 bg-primary text-white text-sm rounded hover:bg-primary/80 active:scale-95 transition whitespace-nowrap',
-    { type: 'button', id: 'scanCardBtn' },
-    '📷 Escanear'
+    'flex items-center justify-center p-2 bg-primary text-white rounded hover:bg-primary/80 active:scale-95 transition',
+    { type: 'button', id: 'scanCardBtn', title: 'Usar cámara' },
+    el('span', 'material-symbols-outlined', {}, 'photo_camera')
+  );
+  const galleryBtn = el(
+    'button',
+    'flex items-center justify-center p-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 active:scale-95 transition',
+    { type: 'button', id: 'galleryCardBtn', title: 'Subir imagen' },
+    el('span', 'material-symbols-outlined', {}, 'image')
   );
 
-  const cardRow = el('div', 'flex items-center gap-2', {}, cardInput, scanBtn, fileInput);
+  const cardRow = el('div', 'flex items-center gap-2', {}, cardInput, scanBtn, galleryBtn, fileInput, galleryInput);
 
   // Status / feedback line
   const statusEl = el('p', 'text-sm mt-1 hidden', { id: 'ocrStatus' }, '');
@@ -208,8 +221,12 @@ function renderSendForm() {
     if (isMobile) {
       fileInput.click();
     } else {
-      openWebcamModal(cardInput, statusEl, resizeImage, fileInput);
+      openWebcamModal(cardInput, statusEl, resizeImage, galleryInput);
     }
+  });
+
+  galleryBtn.addEventListener('click', () => {
+    galleryInput.click();
   });
 
   // ── Desktop Webcam Modal ──
@@ -326,7 +343,7 @@ function renderSendForm() {
     });
   }
 
-  fileInput.addEventListener('change', async (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     statusEl.classList.remove('hidden', 'text-red-500', 'text-green-600');
@@ -341,13 +358,15 @@ function renderSendForm() {
       statusEl.textContent = '❌ Error al procesar la imagen.';
       statusEl.classList.replace('text-blue-500', 'text-red-500');
     }
-    // Reset so re-selecting same file triggers change event again
-    fileInput.value = '';
-  });
+    e.target.value = '';
+  };
+
+  fileInput.addEventListener('change', handleFileChange);
+  galleryInput.addEventListener('change', handleFileChange);
 
   // ── Confirmation number ──
   const confirmLabel = el('label', 'block text-sm font-medium mb-1', { for: 'confirmInput' }, 'Número de confirmación');
-  const confirmInput = el('input', 'w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary', {
+  const confirmInput = el('input', 'w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-primary', {
     id: 'confirmInput',
     type: 'text',
     placeholder: 'Código de confirmación',
@@ -357,7 +376,7 @@ function renderSendForm() {
 
   // ── Amount ──
   const amountLabel = el('label', 'block text-sm font-medium mb-1', { for: 'amountInput' }, 'Monto a enviar');
-  const amountInput = el('input', 'w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary', {
+  const amountInput = el('input', 'w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-primary', {
     id: 'amountInput',
     type: 'number',
     placeholder: '0.00',
@@ -369,7 +388,7 @@ function renderSendForm() {
 
   // ── Recipient phone ──
   const phoneLabel = el('label', 'block text-sm font-medium mb-1', { for: 'phoneInput' }, 'Teléfono destinatario');
-  const phoneInput = el('input', 'w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary', {
+  const phoneInput = el('input', 'w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-primary', {
     id: 'phoneInput',
     type: 'tel',
     placeholder: '+53... (opcional)',
@@ -402,7 +421,6 @@ function renderSendForm() {
     const phone   = phoneInput.value.trim();
 
     const lines = [
-      '────────────────',
       `💳 Tarjeta: ${card}`,
       `🔑 Confirmación: ${confirm}`,
       `💵 Monto: $${amount}`,
