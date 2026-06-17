@@ -163,12 +163,41 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(match){
         card.value = formatCard(match[0]);
         ocrStatus.textContent = 'Número reconocido';
-      } else {
-        ocrStatus.textContent = 'No se encontró número de tarjeta';
+        return;
       }
+      ocrStatus.textContent = 'No se encontró número de tarjeta';
     }catch(err){
       console.error('OCR failed', err);
-      ocrStatus.textContent = 'Error durante OCR: ' + (err.message || 'problema desconocido');
+      ocrStatus.textContent = 'Tesseract falló, intentando OCRAD...';
+      try{
+        await scanWithOcrad();
+      }catch(err2){
+        console.error('OCRAD failed', err2);
+        ocrStatus.textContent = 'Error OCR: ' + (err2.message || 'problema desconocido');
+      }
+    }
+  }
+
+  async function scanWithOcrad(){
+    if(typeof Ocrad !== 'function'){
+      throw new Error('OCRAD no disponible');
+    }
+    ocrStatus.textContent = 'Escaneando con OCRAD...';
+    const bitmap = await createImageBitmap(currentFile);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const text = Ocrad(imageData);
+    const digits = text.replace(/\D/g,'');
+    const match = digits.match(/\d{13,19}/);
+    if(match){
+      card.value = formatCard(match[0]);
+      ocrStatus.textContent = 'Número reconocido con OCRAD';
+    } else {
+      ocrStatus.textContent = 'OCRAD no encontró número de tarjeta';
     }
   }
 
