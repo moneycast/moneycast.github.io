@@ -59,19 +59,6 @@ function extractCardNumber(text) {
   return null;
 }
 
-function withTimeout(promise, ms, errorMessage) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms)),
-  ]);
-}
-
-function normalizeCardText(text) {
-  const normalized = extractCardNumber(text);
-  return normalized.replace(/\D/g, '');
-}
-
-
 // ──────────────────────────────────────────────
 // Local Storage Manager
 // ──────────────────────────────────────────────
@@ -150,40 +137,24 @@ function exportOperations() {
 // ──────────────────────────────────────────────
 let ocrWorker = null;
 let currentOcrStatusEl = null;
-let ocrWorkerReadyPromise = null;
 
 async function initTesseractWorker() {
   if (typeof Tesseract === 'undefined') return;
-
-  ocrWorkerReadyPromise = (async () => {
-    try {
-      ocrWorker = await Tesseract.createWorker({
-        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/worker.min.js',
-        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@v4.0.2/tesseract-core-simd.wasm.js',
-        langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-        workerBlobURL: false,
-        logger: (m) => {
-          if (currentOcrStatusEl && m.status === 'recognizing text') {
-            currentOcrStatusEl.textContent = `🔍 OCR: ${Math.round(m.progress * 100)}%`;
-          }
-        },
-      });
-
-      await ocrWorker.load();
-      await ocrWorker.loadLanguage('eng');
-      await ocrWorker.initialize('eng');
-      await ocrWorker.setParameters({
-        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
-      });
-
-      console.log('[Tesseract] Worker ready in background.');
-    } catch (err) {
-      console.error('[Tesseract] Init error:', err);
-      ocrWorker = null;
-    }
-  })();
-
-  return ocrWorkerReadyPromise;
+  try {
+    ocrWorker = await Tesseract.createWorker('eng', 1, {
+      logger: (m) => {
+        if (currentOcrStatusEl && m.status === 'recognizing text') {
+          currentOcrStatusEl.textContent = `🔍 OCR: ${Math.round(m.progress * 100)}%`;
+        }
+      }
+    });
+    await ocrWorker.setParameters({
+      tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+    });
+    console.log('[Tesseract] Worker ready in background.');
+  } catch (err) {
+    console.error('[Tesseract] Init error:', err);
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -194,63 +165,24 @@ async function ocrWithTesseract(imageFile, statusEl) {
 
   statusEl.textContent = '🔍 Analizando imagen…';
 
-  if (ocrWorkerReadyPromise) {
-    await ocrWorkerReadyPromise.catch((err) => {
-      console.warn('[Tesseract] worker init failed:', err);
-      ocrWorker = null;
-      ocrWorkerReadyPromise = null;
-    });
+  if (ocrWorker) {
+    currentOcrStatusEl = statusEl;
+    const { data } = await ocrWorker.recognize(imageFile);
+    currentOcrStatusEl = null;
+    return data.text || '';
   }
 
-  const options = {
-    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/worker.min.js',
-    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@v4.0.2/tesseract-core-simd.wasm.js',
-    langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-    workerBlobURL: false,
+  // Fallback if worker not ready
+  const { data } = await Tesseract.recognize(imageFile, 'eng', {
     logger: (m) => {
       if (m.status === 'recognizing text') {
         statusEl.textContent = `🔍 OCR: ${Math.round(m.progress * 100)}%`;
       }
     },
-  };
+    tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+  });
 
-  const recognizeWithWorker = async (worker) => {
-    currentOcrStatusEl = statusEl;
-    try {
-      const { data } = await worker.recognize(imageFile);
-      return data.text || '';
-    } finally {
-      currentOcrStatusEl = null;
-    }
-  };
-
-  const run = async () => {
-    if (ocrWorker) {
-      return recognizeWithWorker(ocrWorker);
-    }
-
-    try {
-      const worker = await Tesseract.createWorker(options);
-      try {
-        await worker.load();
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
-        await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK });
-        return await recognizeWithWorker(worker);
-      } finally {
-        await worker.terminate();
-      }
-    } catch (err) {
-      console.warn('[Tesseract] worker fallback:', err);
-      const { data } = await Tesseract.recognize(imageFile, 'eng', {
-        ...options,
-        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
-      });
-      return data.text || '';
-    }
-  };
-
-  return withTimeout(run(), 15000, 'Tesseract OCR timeout');
+  return data.text || '';
 }
 
 // ──────────────────────────────────────────────
@@ -272,20 +204,7 @@ async function ocrWithOcrSpace(imageFile, statusEl) {
     method: 'POST',
     body: formData,
   });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => 'no body');
-    throw new Error(`OCR.space HTTP ${response.status}: ${body.slice(0, 200)}`);
-  }
-
-  let result;
-  try {
-    result = await response.json();
-  } catch (err) {
-    const text = await response.text().catch(() => 'unable to read response');
-    throw new Error(`OCR.space non-JSON response: ${text.slice(0, 200)}`);
-  }
-
+  const result = await response.json();
   if (result.IsErroredOnProcessing) throw new Error(result.ErrorMessage?.[0] || 'OCR.space error');
   return result.ParsedResults?.[0]?.ParsedText || '';
 }
@@ -296,38 +215,28 @@ async function ocrWithOcrSpace(imageFile, statusEl) {
 async function scanCardFromImage(imageFile, cardInput, statusEl) {
   statusEl.classList.remove('hidden', 'text-red-500', 'text-green-600');
   statusEl.classList.add('text-blue-500');
-  statusEl.textContent = '🔍 Analizando imagen…';
-  console.log('[scanCardFromImage] start');
 
   let digits = null;
 
   // ── Strategy 1: Tesseract.js (local, no network needed)
   try {
-    statusEl.textContent = '🔍 Analizando con OCR local…';
     const text = await ocrWithTesseract(imageFile, statusEl);
     console.log('[Tesseract] raw text:', text);
     digits = extractCardNumber(text);
     if (digits) console.log('[Tesseract] found digits:', digits);
-    else console.log('[Tesseract] no digits found');
   } catch (err) {
     console.warn('[Tesseract] failed:', err.message);
-    statusEl.textContent = '⚠️ OCR local falló. Probando OCR en la nube…';
   }
 
   // ── Strategy 2: OCR.space API (cloud fallback)
   if (!digits) {
     try {
-      statusEl.textContent = '☁️ Probando OCR en la nube…';
-      const text = await withTimeout(ocrWithOcrSpace(imageFile, statusEl), 20000, 'OCR.space timeout');
+      const text = await ocrWithOcrSpace(imageFile, statusEl);
       console.log('[OCR.space] raw text:', text);
       digits = extractCardNumber(text);
       if (digits) console.log('[OCR.space] found digits:', digits);
-      else console.log('[OCR.space] no digits found');
     } catch (err) {
       console.warn('[OCR.space] failed:', err.message);
-      statusEl.textContent = '❌ No se pudo procesar la imagen. Ingrésalo manualmente.';
-      statusEl.classList.replace('text-blue-500', 'text-red-500');
-      return;
     }
   }
 
@@ -844,22 +753,19 @@ window.addEventListener('load', () => {
 // Web Share Target: check if app was opened with a shared image
 // ──────────────────────────────────────────────
 async function checkForSharedImage() {
-  try {
-    const cache = await caches.open('remesas-shared-image-v2');
-    const sharedImageRequest = new Request(new URL('shared-image', location.href).href);
-    const response = await cache.match(sharedImageRequest);
-    if (!response) return;
+  // Only run if the URL contains the ?shared=1 flag set by the SW redirect
+  if (!location.search.includes('shared=1') && !location.hash.includes('shared=1')) return;
 
-    const isSharedUrl = location.search.includes('shared=1') || location.hash.includes('shared=1');
-    if (!isSharedUrl) {
-      console.log('[Share Target] shared image found in cache without query string, processing anyway');
-    }
+  try {
+    const cache = await caches.open('remesas-shared-image-v1');
+    const response = await cache.match('/shared-image');
+    if (!response) return;
 
     const blob = await response.blob();
     const file = new File([blob], 'shared_image.jpg', { type: blob.type || 'image/jpeg' });
 
     // Remove the shared image from cache so it doesn't re-trigger on next open
-    await cache.delete(sharedImageRequest);
+    await cache.delete('/shared-image');
 
     // Show scanning feedback while form loads
     // Wait a tick for the DOM to be ready after router()
@@ -873,24 +779,12 @@ async function checkForSharedImage() {
       statusEl.classList.add('text-blue-500');
       statusEl.textContent = '📤 Imagen recibida. Analizando…';
 
-      if (ocrWorkerReadyPromise) {
-        await ocrWorkerReadyPromise.catch((err) => {
-          console.warn('[Share Target] ocr worker init failed:', err);
-          ocrWorker = null;
-          ocrWorkerReadyPromise = null;
-        });
-      }
-
       try {
         const resizedFile = await resizeImageBlob(file);
-        await withTimeout(
-          scanCardFromImage(resizedFile, cardInput, statusEl),
-          25000,
-          'Procesamiento de OCR agotó el tiempo'
-        );
+        await scanCardFromImage(resizedFile, cardInput, statusEl);
       } catch (err) {
         console.error('[Share Target] OCR error:', err);
-        statusEl.textContent = '❌ No se pudo procesar la imagen a tiempo. Ingrésala manualmente.';
+        statusEl.textContent = '❌ Error al procesar la imagen compartida.';
         statusEl.classList.replace('text-blue-500', 'text-red-500');
       }
     }, 600);
