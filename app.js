@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if(isMobile) document.body.classList.add('device-mobile'); else document.body.classList.add('device-desktop');
   // If touch device, enlarge actionable buttons
   if(isTouch){
-    [ 'scanBtn','previewMessages','sendAll' ].forEach(id=>{ const el = document.getElementById(id); if(el) el.classList.add('is-large'); });
+    [ 'previewMessages','sendAll' ].forEach(id=>{ const el = document.getElementById(id); if(el) el.classList.add('is-large'); });
   }
   // File inputs / camera & gallery buttons
   const fileCamera = $('fileCamera');
@@ -42,7 +42,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const installBtn = $('installBtn');
   const preview = $('preview');
   const previewWrap = $('previewWrap');
-  const scanBtn = $('scanBtn');
   const ocrStatus = $('ocrStatus');
   const card = $('card');
   const dest = $('dest');
@@ -59,6 +58,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   let currentFile = null;
   let deferredPrompt = null;
+  let ocrWorker = null;
 
   // PWA install prompt
   window.addEventListener('beforeinstallprompt', (e)=>{
@@ -86,24 +86,62 @@ document.addEventListener('DOMContentLoaded', ()=>{
   bbCameraBtn && bbCameraBtn.addEventListener('click', ()=>{ fileCamera && fileCamera.click(); });
 
   // Manejar imagen seleccionada (camera & gallery)
-  function handleFileSelected(e){
+  async function handleFileSelected(e){
     const f = e.target.files && e.target.files[0];
     if(!f) return;
-    currentFile = f;
-    const url = URL.createObjectURL(f);
+    currentFile = await normalizeImage(f);
+    const url = URL.createObjectURL(currentFile);
     preview.src = url;
     previewWrap.classList.remove('is-hidden');
-    ocrStatus.textContent = '';
+    ocrStatus.textContent = 'Preparando OCR...';
+    await scanImage();
   }
   fileCamera && fileCamera.addEventListener('change', handleFileSelected);
   fileGallery && fileGallery.addEventListener('change', handleFileSelected);
 
-  // Escanear con Tesseract
-  scanBtn.addEventListener('click', async ()=>{
-    if(!currentFile){ ocrStatus.textContent = 'Seleccione una imagen primero'; return; }
-    ocrStatus.textContent = 'Escaneando...';
+  async function normalizeImage(file){
     try{
-      const { data: { text } } = await Tesseract.recognize(currentFile, 'spa');
+      const bitmap = await createImageBitmap(file);
+      const maxDim = 1024;
+      const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      return await new Promise(resolve => canvas.toBlob(blob => {
+        resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.8));
+    }catch(err){
+      return file;
+    }
+  }
+
+  async function getOcrWorker(){
+    if(ocrWorker) return ocrWorker;
+    ocrWorker = Tesseract.createWorker({
+      logger: m => {
+        if(m.status === 'recognizing text'){
+          ocrStatus.textContent = `OCR ${Math.round(m.progress * 100)}%`;
+        }
+      }
+    });
+    await ocrWorker.load();
+    await ocrWorker.loadLanguage('eng');
+    await ocrWorker.initialize('eng');
+    await ocrWorker.setParameters({
+      tessedit_char_whitelist: '0123456789',
+      tessedit_pageseg_mode: '6'
+    });
+    return ocrWorker;
+  }
+
+  async function scanImage(){
+    if(!currentFile){ ocrStatus.textContent = 'Seleccione una imagen primero'; return; }
+    try{
+      const worker = await getOcrWorker();
+      ocrStatus.textContent = 'Escaneando...';
+      const { data: { text } } = await worker.recognize(currentFile);
       const digits = text.replace(/\D/g,'');
       const match = digits.match(/\d{13,19}/);
       if(match){
@@ -116,7 +154,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
       console.error(err);
       ocrStatus.textContent = 'Error durante OCR';
     }
-  });
+  }
+
+  // Escanear con Tesseract
 
   // Formateo simple de tarjeta
   function formatCard(s){ return s.replace(/(.{4})/g,'$1 ').trim(); }
@@ -124,7 +164,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // Previsualizar mensajes
   previewMessages.addEventListener('click', ()=>{
     const msgs = buildMessages();
-    msgList.innerHTML = msgs.join('\n');
+    msgList.textContent = msgs.join('\n');
     messagesSection.classList.remove('is-hidden');
   });
 
@@ -220,7 +260,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       preview.src = dataUrl;
       previewWrap.classList.remove('is-hidden');
       // crear un File a partir del dataURL para usar con Tesseract
-      dataURLToFile(dataUrl, 'shared.jpg').then(f=>{ currentFile = f; setTimeout(()=>$('scanBtn').click(),300); });
+      dataURLToFile(dataUrl, 'shared.jpg').then(f=>{ currentFile = f; setTimeout(scanImage,300); });
     }
   }
 

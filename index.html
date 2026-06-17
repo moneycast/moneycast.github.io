@@ -67,16 +67,14 @@
                   <div class="control">
                     <button id="galleryBtn" type="button" class="button is-link">Galería</button>
                   </div>
-                </div>
-                <p class="help">Captura la tarjeta o elige una imagen para extraer automáticamente el número.</p>
-              </div>
+                <input id="fileCamera" class="is-hidden" type="file" accept="image/*" capture="environment">
+                <input id="fileGallery" class="is-hidden" type="file" accept="image/*">
 
               <div id="previewWrap" class="box is-hidden">
                 <figure class="image is-3by1">
                   <img id="preview" alt="Vista previa" />
                 </figure>
                 <div class="buttons mt-3">
-                  <button id="scanBtn" type="button" class="button is-info">Escanear OCR</button>
                   <span id="ocrStatus" class="is-size-7 has-text-grey"></span>
                 </div>
               </div>
