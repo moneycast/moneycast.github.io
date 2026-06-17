@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini PWA: Enviar por WhatsApp</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0ea5a4">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+  <div class="max-w-2xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold">Enviar datos por WhatsApp</h1>
+      <p class="text-sm text-gray-600">PWA instalable · Escanea tarjeta o ingresa manualmente</p>
+    </header>
+
+    <main class="bg-white shadow rounded-lg p-6">
+      <form id="form" class="space-y-4" onsubmit="return false;">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Número destino (WhatsApp, con código de país)</label>
+          <input id="dest" type="tel" inputmode="numeric" placeholder="34123456789" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:ring-2 focus:ring-teal-300 p-2" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Número de tarjeta</label>
+          <div class="flex gap-2 mt-1">
+            <input id="card" type="text" inputmode="numeric" placeholder="1234 5678 9012 3456" class="flex-1 rounded-md border-gray-200 p-2" />
+            <label class="bg-teal-500 text-white px-3 py-2 rounded-md cursor-pointer text-sm flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7h18M3 12h18M3 17h18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <input id="imageInput" type="file" accept="image/*" capture="environment" class="hidden" />
+              Foto
+            </label>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Puedes tomar una foto, elegir de galería o compartir desde otra app.</p>
+        </div>
+
+        <div id="previewWrap" class="hidden">
+          <img id="preview" alt="preview" class="w-full rounded-md mt-2 object-contain border" />
+          <div class="mt-2 flex gap-2">
+            <button type="button" id="scanBtn" class="bg-indigo-600 text-white px-3 py-2 rounded-md">Escanear</button>
+            <span id="ocrStatus" class="text-sm self-center text-gray-600"></span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Teléfono del solicitante</label>
+          <input id="phone" type="tel" inputmode="numeric" placeholder="34123456789" class="mt-1 block w-full rounded-md border-gray-200 p-2" />
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-gray-700">Cantidad</label>
+            <input id="amount" type="number" min="0" step="0.01" placeholder="100.00" class="mt-1 block w-full rounded-md border-gray-200 p-2" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Moneda</label>
+            <input id="currency" type="text" placeholder="USD" class="mt-1 block w-full rounded-md border-gray-200 p-2" />
+          </div>
+        </div>
+
+        <div class="pt-4 border-t">
+          <div class="flex gap-2">
+            <button id="previewMessages" type="button" class="bg-teal-600 text-white px-4 py-2 rounded-md">Previsualizar mensajes</button>
+            <button id="sendAll" type="button" class="bg-blue-600 text-white px-4 py-2 rounded-md">Enviar a WhatsApp (3 mensajes)</button>
+          </div>
+        </div>
+
+      </form>
+
+      <section id="messages" class="mt-4 hidden">
+        <h3 class="font-medium">Mensajes a enviar</h3>
+        <ol id="msgList" class="list-decimal pl-5 mt-2 text-sm text-gray-700"></ol>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
