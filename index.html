@@ -9,10 +9,11 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
   <style>
-    .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #dbdbdb; }
+    .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #dbdbdb; padding: 0.75rem 0.5rem; }
+    .mobile-bottom-bar .buttons { margin: 0; }
     .mobile-bottom-bar .button { flex: 1; margin: 0 0.25rem; }
-    .content-wrapper { padding-bottom: 5rem; }
-    #preview { max-height: 280px; width: 100%; object-fit: contain; }
+    .content-wrapper { padding-bottom: 7.5rem; }
+    #preview { max-height: 260px; width: 100%; object-fit: contain; }
     .is-hidden { display: none !important; }
     .history-item { border: 1px solid #e8e8e8; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
     .history-item .buttons { flex-wrap: wrap; gap: 0.5rem; }
@@ -40,7 +41,7 @@
   <section class="section content-wrapper">
     <div class="container">
       <div class="columns is-variable is-6 is-multiline">
-        <div class="column is-8">
+        <div class="column is-full-mobile is-two-thirds-tablet is-two-thirds-desktop">
           <div id="tabForm" class="box">
             <div class="content">
               <h3 class="title is-4">Formulario de envío</h3>
@@ -57,18 +58,21 @@
 
               <div class="field">
                 <label class="label">Número de tarjeta</label>
-                <div class="field has-addons">
+                <div class="field is-grouped is-grouped-multiline">
                   <div class="control is-expanded">
                     <input id="card" class="input" type="text" inputmode="numeric" placeholder="1234 5678 9012 3456" />
                   </div>
-                  <div class="control">
-                    <button id="cameraBtn" type="button" class="button is-primary">Cámara</button>
+                  <div class="control is-expanded-mobile">
+                    <button id="cameraBtn" type="button" class="button is-primary is-fullwidth">Cámara</button>
                   </div>
-                  <div class="control">
-                    <button id="galleryBtn" type="button" class="button is-link">Galería</button>
+                  <div class="control is-expanded-mobile">
+                    <button id="galleryBtn" type="button" class="button is-link is-fullwidth">Galería</button>
                   </div>
+                </div>
                 <input id="fileCamera" class="is-hidden" type="file" accept="image/*" capture="environment">
                 <input id="fileGallery" class="is-hidden" type="file" accept="image/*">
+                <p class="help">Captura la tarjeta o elige una imagen para extraer automáticamente el número.</p>
+              </div>
 
               <div id="previewWrap" class="box is-hidden">
                 <figure class="image is-3by1">
@@ -124,7 +128,7 @@
           </div>
         </div>
 
-        <div class="column is-4">
+        <div class="column is-full-mobile is-one-third-tablet is-one-third-desktop">
           <div id="tabHistory" class="box is-hidden">
             <div class="content">
               <h3 class="title is-5">Historial</h3>
