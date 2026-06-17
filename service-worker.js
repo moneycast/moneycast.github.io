@@ -1,5 +1,5 @@
-const CACHE_NAME = 'remesas-pwa-v4';
-const SHARED_IMAGE_CACHE = 'remesas-shared-image-v2';
+const CACHE_NAME = 'remesas-pwa-v3';
+const SHARED_IMAGE_CACHE = 'remesas-shared-image-v1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -44,40 +44,21 @@ self.addEventListener('activate', event => {
 // Interceptar peticiones
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  swLog('fetch for', event.request.method, url.pathname, 'accept:', event.request.headers.get('accept'), 'content-type:', event.request.headers.get('content-type'));
+  swLog('fetch for', event.request.method, url.pathname, 'headers:', event.request.headers.get('content-type'));
 
-  // ── Handle Web Share Target POST only for the app's share action path
-  if (event.request.method === 'POST' && url.origin === self.location.origin) {
-    const shareTargetPath = new URL('index.html', self.registration.scope).pathname;
+  // ── Handle Web Share Target POST (accept POSTs to index or any multipart/form-data within scope)
+  if (event.request.method === 'POST') {
     const contentType = event.request.headers.get('content-type') || '';
     const isMultipart = contentType.includes('multipart/form-data');
-    swLog('POST detected. isMultipart=', isMultipart, 'pathname=', url.pathname, 'shareTargetPath=', shareTargetPath);
-    if (isMultipart && url.pathname === shareTargetPath) {
+    const isIndexPath = url.pathname.endsWith('index.html') || url.pathname === '/' || url.pathname === '';
+    swLog('POST detected. isMultipart=', isMultipart, 'isIndexPath=', isIndexPath);
+    if (isMultipart || isIndexPath) {
       event.respondWith(handleShareTarget(event.request));
       return;
     }
   }
 
-  // ── Navigation fallback for app shell
-  const accept = event.request.headers.get('accept') || '';
-  const isHtmlNavigation = event.request.method === 'GET' && accept.includes('text/html');
-  if (isHtmlNavigation) {
-    const indexRequest = new Request(new URL('index.html', self.registration.scope).href);
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.ok) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(indexRequest, copy));
-          }
-          return networkResponse;
-        })
-        .catch(() => caches.match(indexRequest))
-    );
-    return;
-  }
-
-  // ── Normal cache-first strategy
+  // ── Normal cache-first strategy ──
   event.respondWith(
     caches.match(event.request).then(response => response || fetch(event.request))
   );
@@ -93,41 +74,26 @@ async function handleShareTarget(request) {
 
     if (imageFile && imageFile instanceof File) {
       const cache = await caches.open(SHARED_IMAGE_CACHE);
-      const sharedImageRequest = new Request(new URL('shared-image', self.registration.scope).href);
       await cache.put(
-        sharedImageRequest,
+        '/shared-image',
         new Response(imageFile, {
           headers: { 'Content-Type': imageFile.type || 'image/jpeg' }
         })
       );
-      swLog('cached shared image at', sharedImageRequest.url);
+      swLog('cached shared image');
     }
   } catch (err) {
     console.error('[SW] Share target error:', err);
     swLog('Share target error:', String(err));
   }
 
-  const indexRequest = new Request(new URL('index.html', self.registration.scope).href);
-  const cachedIndex = await caches.match(indexRequest);
-  if (cachedIndex) {
-    swLog('returning cached index.html for share target');
-    return cachedIndex;
+  swLog('opening client /index.html?shared=1');
+  try {
+    await self.clients.openWindow('/index.html?shared=1');
+  } catch (e) {
+    swLog('openWindow failed', String(e));
   }
-
-  swLog('fetching index.html for share target');
-  return fetch(indexRequest);
+  // Return a simple 200 so fetch callers don't see network-abort errors
+  return new Response('', { status: 200, statusText: 'OK' });
 }
-
-self.addEventListener('message', event => {
-  if (!event.data || event.data.type !== 'DUMP_SHARE_CACHE') return;
-  caches.open(SHARED_IMAGE_CACHE).then(async cache => {
-    const keys = await cache.keys();
-    event.source.postMessage({ type: 'SHARE_CACHE_KEYS', keys: keys.map(k => k.url) });
-    const sharedImageRequest = new Request(new URL('shared-image', self.registration.scope).href);
-    const match = await cache.match(sharedImageRequest);
-    event.source.postMessage({ type: 'SHARE_CACHE_MATCH', request: sharedImageRequest.url, hasMatch: !!match });
-  }).catch(err => {
-    event.source.postMessage({ type: 'SHARE_CACHE_ERROR', error: String(err) });
-  });
-});
 
