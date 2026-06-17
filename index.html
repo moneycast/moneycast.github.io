@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Remesas PWA</title>
+  <meta name="description" content="Aplicación de remesas PWA, responsive y optimizada para GitHub Pages" />
+  <link rel="manifest" href="manifest.json" />
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
+  <script>
+    // Tailwind config for custom colors / dark mode if needed
+    tailwind.config = {
+      darkMode: 'media',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#0d9488', // teal-600 as primary example
+          },
+        },
+      },
+    };
+  </script>
+  <!-- Material Symbols Minimalist Icons -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" />
+  <style>
+    /* Subtle dot pattern background */
+    body {
+      background-image: radial-gradient(#0d948822 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-image: radial-gradient(#ffffff15 1px, transparent 1px);
+      }
+    }
+  </style>
+</head>
+<body class="h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex relative overflow-hidden">
+  
+  <!-- Sidebar for Desktop -->
+  <aside class="hidden md:flex flex-col w-64 bg-white/80 dark:bg-gray-800/80 backdrop-blur border-r border-gray-200 dark:border-gray-700">
+    <div class="p-4 text-xl font-bold text-primary flex items-center gap-2 border-b border-gray-200 dark:border-gray-700">
+      <span class="material-symbols-outlined">payments</span> Remesas
+    </div>
+    <nav class="flex-1 p-4 space-y-2">
+      <a href="#send" id="nav-send-desktop" class="flex items-center gap-3 p-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition">
+        <span class="material-symbols-outlined">send</span> Enviar
+      </a>
+      <a href="#history" id="nav-history-desktop" class="flex items-center gap-3 p-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition">
+        <span class="material-symbols-outlined">history</span> Historial
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col h-full overflow-hidden">
+    <!-- Mobile Topbar -->
+    <header class="md:hidden bg-white/90 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 p-4 text-center font-bold text-lg text-primary flex items-center justify-center gap-2 z-10">
+      <span class="material-symbols-outlined">payments</span> Remesas
+    </header>
+
+    <div id="app" class="flex-1 overflow-y-auto pb-20 md:pb-0"></div>
+    
+    <!-- Mobile Bottom Navigation -->
+    <nav class="md:hidden absolute bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur border-t border-gray-200 dark:border-gray-700 flex justify-around z-40 pb-safe">
+      <a href="#send" id="nav-send-mobile" class="flex-1 flex flex-col items-center py-2 text-gray-500 hover:text-primary transition">
+        <span class="material-symbols-outlined mb-1">send</span>
+        <span class="text-[10px] font-medium uppercase tracking-wider">Enviar</span>
+      </a>
+      <a href="#history" id="nav-history-mobile" class="flex-1 flex flex-col items-center py-2 text-gray-500 hover:text-primary transition">
+        <span class="material-symbols-outlined mb-1">history</span>
+        <span class="text-[10px] font-medium uppercase tracking-wider">Historial</span>
+      </a>
+    </nav>
+  </main>
+
+  <script src="src/app.js"></script>
+  <script>
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('Service Worker registered'))
+        .catch(err => console.error('SW registration failed', err));
+    }
+  </script>
+</body>
+</html>
