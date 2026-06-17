@@ -186,6 +186,46 @@ async function ocrWithTesseract(imageFile, statusEl) {
 }
 
 // ──────────────────────────────────────────────
+// Image Resizer (to prevent 1MB limit on OCR.space and speed up Tesseract)
+// ──────────────────────────────────────────────
+function resizeImage(file, maxDim = 1200) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error('Canvas to Blob failed'));
+          resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+        }, 'image/jpeg', 0.8);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ──────────────────────────────────────────────
 // OCR via OCR.space free API (fallback)
 // ──────────────────────────────────────────────
 async function ocrWithOcrSpace(imageFile, statusEl) {
@@ -410,43 +450,7 @@ function renderSendForm() {
     });
   }
 
-  // ── Image Resizer (to prevent 1MB limit on OCR.space and speed up Tesseract)
-  function resizeImage(file, maxDim = 1200) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-          if (width > height) {
-            if (width > maxDim) {
-              height *= maxDim / width;
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width *= maxDim / height;
-              height = maxDim;
-            }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          canvas.toBlob((blob) => {
-            if (!blob) return reject(new Error('Canvas to Blob failed'));
-            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
-          }, 'image/jpeg', 0.8);
-        };
-        img.onerror = reject;
-        img.src = e.target.result;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
+  // ── Image Resizer removed here (moved to global scope for Web Share Target support)
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
