@@ -1,5 +1,11 @@
 const CACHE = 'pwa-shell-v1';
-const ASSETS = ['/', '/index.html', '/app.js', '/manifest.json'];
+const ASSETS = [
+  '/', '/index.html', '/app.js', '/manifest.json',
+  'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js',
+  'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
+  'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract-core.wasm.js',
+  'https://cdn.jsdelivr.net/npm/tessdata@4.0.0/eng.traineddata.gz'
+];
 
 self.addEventListener('install', (e)=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
@@ -40,6 +46,16 @@ self.addEventListener('fetch', (event)=>{
     return;
   }
 
-  // Try cache first, then network
-  event.respondWith(caches.match(event.request).then(r=> r || fetch(event.request)));
+  // Try cache first, then network; cache fetched assets for offline fallback
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      const fetchPromise = fetch(event.request).then(networkResponse => {
+        if(networkResponse && networkResponse.status === 200 && event.request.method === 'GET'){
+          caches.open(CACHE).then(cache => cache.put(event.request, networkResponse.clone()));
+        }
+        return networkResponse;
+      }).catch(()=> cached);
+      return cached || fetchPromise;
+    })
+  );
 });

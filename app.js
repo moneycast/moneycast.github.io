@@ -120,20 +120,32 @@ document.addEventListener('DOMContentLoaded', ()=>{
   async function getOcrWorker(){
     if(ocrWorker) return ocrWorker;
     ocrWorker = Tesseract.createWorker({
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract-core.wasm.js',
+      langPath: 'https://cdn.jsdelivr.net/npm/tessdata@4.0.0',
+      gzip: true,
       logger: m => {
         if(m.status === 'recognizing text'){
           ocrStatus.textContent = `OCR ${Math.round(m.progress * 100)}%`;
+        } else if(m.status === 'loading tesseract core'){
+          ocrStatus.textContent = 'Cargando OCR...';
         }
       }
     });
-    await ocrWorker.load();
-    await ocrWorker.loadLanguage('eng');
-    await ocrWorker.initialize('eng');
-    await ocrWorker.setParameters({
-      tessedit_char_whitelist: '0123456789',
-      tessedit_pageseg_mode: '6'
-    });
-    return ocrWorker;
+    try{
+      await ocrWorker.load();
+      await ocrWorker.loadLanguage('eng');
+      await ocrWorker.initialize('eng');
+      await ocrWorker.setParameters({
+        tessedit_char_whitelist: '0123456789',
+        tessedit_pageseg_mode: '6'
+      });
+      return ocrWorker;
+    }catch(err){
+      console.error('OCR init failed', err);
+      ocrStatus.textContent = 'No se pudo inicializar OCR. Revisa tu conexión.';
+      throw err;
+    }
   }
 
   async function scanImage(){
@@ -151,8 +163,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
         ocrStatus.textContent = 'No se encontró número de tarjeta';
       }
     }catch(err){
-      console.error(err);
-      ocrStatus.textContent = 'Error durante OCR';
+      console.error('OCR failed', err);
+      ocrStatus.textContent = 'Error durante OCR: ' + (err.message || 'problema desconocido');
     }
   }
 
