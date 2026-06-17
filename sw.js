@@ -1,10 +1,9 @@
 const CACHE = 'pwa-shell-v1';
 const ASSETS = [
   '/', '/index.html', '/app.js', '/manifest.json',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract-core.wasm.js',
-  'https://cdn.jsdelivr.net/npm/tessdata@4.0.0/eng.traineddata.gz'
+  'https://unpkg.com/tesseract.js@4.0.2/dist/worker.min.js',
+  'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
+  'https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz'
 ];
 
 self.addEventListener('install', (e)=>{

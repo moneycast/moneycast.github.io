@@ -120,9 +120,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   async function getOcrWorker(){
     if(ocrWorker) return ocrWorker;
     ocrWorker = Tesseract.createWorker({
-      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
-      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract-core.wasm.js',
-      langPath: 'https://cdn.jsdelivr.net/npm/tessdata@4.0.0',
+      workerPath: 'https://unpkg.com/tesseract.js@4.0.2/dist/worker.min.js',
+      corePath: 'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
       gzip: true,
       logger: m => {
         if(m.status === 'recognizing text'){
