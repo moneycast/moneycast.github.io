@@ -16,9 +16,11 @@
     .hero-body .subtitle { font-size: 1rem; }
     .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #dbdbdb; padding: 0.75rem 0.75rem; }
     .mobile-bottom-bar .buttons { margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .mobile-bottom-bar .button { flex: 1 1 0; margin: 0; font-size: 0.95rem; }
+    .mobile-bottom-bar .button { flex: 1 1 0; margin: 0; font-size: 0.95rem; min-height: 3.2rem; }
     .hero-foot .buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
-    .hero-foot .button { flex: 1 1 140px; }
+    .hero-foot .button { flex: 1 1 140px; min-height: 3rem; }
+    .button { font-size: 1rem; line-height: 1.4; padding: 0.85rem 1rem; }
+    .field.is-grouped .button { min-width: 8rem; }
     .content-wrapper { padding-bottom: 8rem; padding-top: 1rem; }
     .box { border-radius: 1rem; }
     .box + .box { margin-top: 1rem; }
@@ -34,6 +36,7 @@
       .field.has-addons .control .button { width: 100%; }
       .hero-foot .buttons { flex-direction: column; gap: 0.5rem; }
       .hero-foot .button { width: 100%; }
+      .mobile-bottom-bar .button { font-size: 0.95rem; min-height: 3rem; }
     }
   </style>
 </head>
