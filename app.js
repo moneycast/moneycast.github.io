@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   async function getOcrWorker(){
     if(ocrWorker) return ocrWorker;
-    ocrWorker = Tesseract.createWorker({
+    const workerPromise = Tesseract.createWorker({
       workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
       corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
       langPath: 'https://tessdata.projectnaptha.com/4.0.0/',
@@ -137,14 +137,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
     });
     try{
-      await ocrWorker.load();
-      await ocrWorker.loadLanguage('eng');
-      await ocrWorker.initialize('eng');
-      await ocrWorker.setParameters({
+      const worker = await workerPromise;
+      ocrWorker = worker;
+      await worker.load();
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+      await worker.setParameters({
         tessedit_char_whitelist: '0123456789',
         tessedit_pageseg_mode: '6'
       });
-      return ocrWorker;
+      return worker;
     }catch(err){
       console.error('OCR init failed', err);
       ocrStatus.textContent = 'No se pudo inicializar OCR. Revisa tu conexión o limpia caché.';
