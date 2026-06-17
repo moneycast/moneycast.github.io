@@ -59,6 +59,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
   let currentFile = null;
   let deferredPrompt = null;
   let ocrWorker = null;
+  let ocrReady = false;
+
+  async function preloadOcr(){
+    if(ocrReady) return;
+    try{
+      await getOcrWorker();
+      ocrReady = true;
+      console.log('OCR preloaded');
+    }catch(err){
+      console.warn('OCR preload failed', err);
+    }
+  }
 
   // PWA install prompt
   window.addEventListener('beforeinstallprompt', (e)=>{
@@ -73,6 +85,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     deferredPrompt = null;
     installBtn.classList.add('is-hidden');
   });
+
+  preloadOcr();
 
   // Wire camera/gallery buttons
   cameraBtn && cameraBtn.addEventListener('click', ()=>{ fileCamera && fileCamera.click(); });
@@ -89,6 +103,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   async function handleFileSelected(e){
     const f = e.target.files && e.target.files[0];
     if(!f) return;
+    await preloadOcr();
     currentFile = await normalizeImage(f);
     const url = URL.createObjectURL(currentFile);
     preview.src = url;
@@ -108,6 +123,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       canvas.width = Math.round(bitmap.width * scale);
       canvas.height = Math.round(bitmap.height * scale);
       const ctx = canvas.getContext('2d');
+      ctx.filter = 'contrast(150%) brightness(110%) grayscale(100%)';
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       return await new Promise(resolve => canvas.toBlob(blob => {
         resolve(new File([blob], file.name, { type: 'image/jpeg' }));
