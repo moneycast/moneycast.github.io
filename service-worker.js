@@ -118,3 +118,16 @@ async function handleShareTarget(request) {
   return fetch(indexRequest);
 }
 
+self.addEventListener('message', event => {
+  if (!event.data || event.data.type !== 'DUMP_SHARE_CACHE') return;
+  caches.open(SHARED_IMAGE_CACHE).then(async cache => {
+    const keys = await cache.keys();
+    event.source.postMessage({ type: 'SHARE_CACHE_KEYS', keys: keys.map(k => k.url) });
+    const sharedImageRequest = new Request(new URL('shared-image', self.registration.scope).href);
+    const match = await cache.match(sharedImageRequest);
+    event.source.postMessage({ type: 'SHARE_CACHE_MATCH', request: sharedImageRequest.url, hasMatch: !!match });
+  }).catch(err => {
+    event.source.postMessage({ type: 'SHARE_CACHE_ERROR', error: String(err) });
+  });
+});
+

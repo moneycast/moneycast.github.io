@@ -845,7 +845,7 @@ window.addEventListener('load', () => {
 // ──────────────────────────────────────────────
 async function checkForSharedImage() {
   try {
-    const cache = await caches.open('remesas-shared-image-v1');
+    const cache = await caches.open('remesas-shared-image-v2');
     const sharedImageRequest = new Request(new URL('shared-image', location.href).href);
     const response = await cache.match(sharedImageRequest);
     if (!response) return;
