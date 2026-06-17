@@ -77,6 +77,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // Wire camera/gallery buttons
   cameraBtn && cameraBtn.addEventListener('click', ()=>{ fileCamera && fileCamera.click(); });
   galleryBtn && galleryBtn.addEventListener('click', ()=>{ fileGallery && fileGallery.click(); });
+  // Mobile bottom bar wiring
+  const bbFormBtn = document.getElementById('bbFormBtn');
+  const bbHistoryBtn = document.getElementById('bbHistoryBtn');
+  const bbCameraBtn = document.getElementById('bbCameraBtn');
+  bbFormBtn && bbFormBtn.addEventListener('click', ()=>{ showTab('form'); window.scrollTo({top:0, behavior:'smooth'}); });
+  bbHistoryBtn && bbHistoryBtn.addEventListener('click', ()=>{ showTab('history'); window.scrollTo({top:0, behavior:'smooth'}); });
+  bbCameraBtn && bbCameraBtn.addEventListener('click', ()=>{ fileCamera && fileCamera.click(); });
 
   // Manejar imagen seleccionada (camera & gallery)
   function handleFileSelected(e){
@@ -219,8 +226,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(list.length===0){ historyList.innerHTML = '<li class="py-2 text-sm text-gray-500">Sin historial</li>'; return; }
     list.forEach(item=>{
       const li = document.createElement('li');
-      li.className = 'py-2 flex items-center justify-between';
+      li.className = 'py-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2';
       const left = document.createElement('div');
+      left.className = 'break-words';
       left.innerHTML = `<div class="text-sm font-medium">${item.card || '—'}</div><div class="text-xs text-gray-500">${item.amount || ''} ${item.currency||''} • ${new Date(item.ts).toLocaleString()}</div>`;
       const actions = document.createElement('div'); actions.className = 'flex gap-2';
       const viewBtn = document.createElement('button'); viewBtn.textContent = 'Ver'; viewBtn.className='text-sm text-sky-600';
