@@ -753,19 +753,22 @@ window.addEventListener('load', () => {
 // Web Share Target: check if app was opened with a shared image
 // ──────────────────────────────────────────────
 async function checkForSharedImage() {
-  // Only run if the URL contains the ?shared=1 flag set by the SW redirect
-  if (!location.search.includes('shared=1') && !location.hash.includes('shared=1')) return;
-
   try {
     const cache = await caches.open('remesas-shared-image-v1');
-    const response = await cache.match('/shared-image');
+    const sharedImageRequest = new Request(new URL('shared-image', location.href).href);
+    const response = await cache.match(sharedImageRequest);
     if (!response) return;
+
+    const isSharedUrl = location.search.includes('shared=1') || location.hash.includes('shared=1');
+    if (!isSharedUrl) {
+      console.log('[Share Target] shared image found in cache without query string, processing anyway');
+    }
 
     const blob = await response.blob();
     const file = new File([blob], 'shared_image.jpg', { type: blob.type || 'image/jpeg' });
 
     // Remove the shared image from cache so it doesn't re-trigger on next open
-    await cache.delete('/shared-image');
+    await cache.delete(sharedImageRequest);
 
     // Show scanning feedback while form loads
     // Wait a tick for the DOM to be ready after router()
