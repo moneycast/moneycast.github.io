@@ -20,6 +20,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const msgList = $('msgList');
   const messagesSection = $('messages');
   const sendAll = $('sendAll');
+  const historyList = document.getElementById('historyList');
+  const clearHistoryBtn = document.getElementById('clearHistory');
+  const editingIdInput = document.getElementById('editingId');
 
   let currentFile = null;
 
@@ -65,12 +68,26 @@ document.addEventListener('DOMContentLoaded', ()=>{
     messagesSection.classList.remove('hidden');
   });
 
-  // Enviar 3 mensajes secuencialmente
+  // Enviar mensajes secuencialmente (soporta sin número)
   sendAll.addEventListener('click', ()=>{
-    const to = dest.value.trim().replace(/[^0-9]/g,'');
-    if(!to){ alert('Ingrese número destino (WhatsApp)'); return; }
+    const toRaw = dest.value.trim();
+    const to = toRaw.replace(/[^0-9]/g,'');
     const msgs = buildMessages();
     sendSequentialWhatsApp(to, msgs);
+    // Save to history (create or update)
+    const eid = editingIdInput.value;
+    const entry = {
+      id: eid || Date.now().toString(),
+      dest: toRaw || '',
+      card: card.value.trim(),
+      phone: phone.value.trim(),
+      amount: amount.value.trim(),
+      currency: currency.value.trim(),
+      ts: new Date().toISOString()
+    };
+    saveHistoryEntry(entry);
+    editingIdInput.value = '';
+    renderHistory();
   });
 
   function buildMessages(){
@@ -81,7 +98,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const m1 = `Tarjeta: ${c}`;
     const m2 = `Teléfono solicitante: ${p}`;
     const m3 = `Cantidad: ${a} ${cur}`;
-    return [m1,m2,m3];
+    const separator = Array.from({length:10}).map(()=>'_ ').join('\n');
+    return [m1,m2,m3, separator];
   }
 
   function isMobile(){ return /Mobi|Android/i.test(navigator.userAgent); }
@@ -91,7 +109,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     msgs.forEach((m, i)=>{
       setTimeout(()=>{
         const text = encodeURIComponent(m);
-        const url = mobile ? `whatsapp://send?phone=${to}&text=${text}` : `https://web.whatsapp.com/send?phone=${to}&text=${text}`;
+        let url = '';
+        if(to){
+          // Send to specific number
+          url = mobile ? `whatsapp://send?phone=${to}&text=${text}` : `https://web.whatsapp.com/send?phone=${to}&text=${text}`;
+        } else {
+          // No number: open WhatsApp and let user pick contact
+          url = mobile ? `whatsapp://send?text=${text}` : `https://wa.me/?text=${text}`;
+        }
         window.open(url, '_blank');
       }, i * 900);
     });
@@ -115,6 +140,71 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const buf = await res.arrayBuffer();
     return new File([buf], filename, {type: res.headers.get('Content-Type')||'image/jpeg'});
   }
+
+  // --- Historial (localStorage) CRUD ---
+  function loadHistory(){
+    try{ const raw = localStorage.getItem('historyOps'); return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
+  }
+
+  function saveHistoryList(list){ localStorage.setItem('historyOps', JSON.stringify(list)); }
+
+  function saveHistoryEntry(entry){
+    const list = loadHistory();
+    const existing = list.find(i=>i.id===entry.id);
+    if(existing){
+      const idx = list.findIndex(i=>i.id===entry.id);
+      list[idx] = entry;
+    } else { list.unshift(entry); }
+    saveHistoryList(list);
+  }
+
+  function deleteHistory(id){ const list = loadHistory().filter(i=>i.id!==id); saveHistoryList(list); }
+  function clearHistory(){ localStorage.removeItem('historyOps'); renderHistory(); }
+
+  function renderHistory(){
+    const list = loadHistory();
+    historyList.innerHTML = '';
+    if(list.length===0){ historyList.innerHTML = '<li class="py-2 text-sm text-gray-500">Sin historial</li>'; return; }
+    list.forEach(item=>{
+      const li = document.createElement('li');
+      li.className = 'py-2 flex items-center justify-between';
+      const left = document.createElement('div');
+      left.innerHTML = `<div class="text-sm font-medium">${item.card || '—'}</div><div class="text-xs text-gray-500">${item.amount || ''} ${item.currency||''} • ${new Date(item.ts).toLocaleString()}</div>`;
+      const actions = document.createElement('div'); actions.className = 'flex gap-2';
+      const viewBtn = document.createElement('button'); viewBtn.textContent = 'Ver'; viewBtn.className='text-sm text-sky-600';
+      const editBtn = document.createElement('button'); editBtn.textContent = 'Editar'; editBtn.className='text-sm text-amber-600';
+      const resendBtn = document.createElement('button'); resendBtn.textContent = 'Reenviar'; resendBtn.className='text-sm text-green-600';
+      const delBtn = document.createElement('button'); delBtn.textContent = 'Borrar'; delBtn.className='text-sm text-red-600';
+      actions.append(viewBtn, editBtn, resendBtn, delBtn);
+      li.append(left, actions);
+      historyList.appendChild(li);
+
+      viewBtn.addEventListener('click', ()=>{ alert(`Tarjeta: ${item.card}\nTel: ${item.phone}\nCantidad: ${item.amount} ${item.currency}`); });
+
+      editBtn.addEventListener('click', ()=>{
+        editingIdInput.value = item.id;
+        dest.value = item.dest || '';
+        card.value = item.card || '';
+        phone.value = item.phone || '';
+        amount.value = item.amount || '';
+        currency.value = item.currency || '';
+        window.scrollTo({top:0,behavior:'smooth'});
+      });
+
+      resendBtn.addEventListener('click', ()=>{
+        const msgs = [ `Tarjeta: ${item.card}`, `Teléfono solicitante: ${item.phone}`, `Cantidad: ${item.amount} ${item.currency}`, Array.from({length:10}).map(()=>'_ ').join('\n') ];
+        const to = (item.dest || '').replace(/[^0-9]/g,'');
+        sendSequentialWhatsApp(to, msgs);
+      });
+
+      delBtn.addEventListener('click', ()=>{ if(confirm('Eliminar este registro?')){ deleteHistory(item.id); renderHistory(); } });
+    });
+  }
+
+  clearHistoryBtn && clearHistoryBtn.addEventListener('click', ()=>{ if(confirm('Borrar todo el historial?')) clearHistory(); });
+
+  // render inicial
+  renderHistory();
 
 });
 
