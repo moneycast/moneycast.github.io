@@ -34,8 +34,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if(isTouch){
     [ 'scanBtn','previewMessages','sendAll' ].forEach(id=>{ const el = document.getElementById(id); if(el) el.classList.add('px-5','py-3','text-base'); });
   }
-
-  const imageInput = $('imageInput');
+  // File inputs / camera & gallery buttons
+  const fileCamera = $('fileCamera');
+  const fileGallery = $('fileGallery');
+  const cameraBtn = $('cameraBtn');
+  const galleryBtn = $('galleryBtn');
+  const installBtn = $('installBtn');
   const preview = $('preview');
   const previewWrap = $('previewWrap');
   const scanBtn = $('scanBtn');
@@ -54,9 +58,28 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const editingIdInput = document.getElementById('editingId');
 
   let currentFile = null;
+  let deferredPrompt = null;
 
-  // Manejar imagen seleccionada
-  imageInput.addEventListener('change', async (e)=>{
+  // PWA install prompt
+  window.addEventListener('beforeinstallprompt', (e)=>{
+    e.preventDefault();
+    deferredPrompt = e;
+    if(installBtn) installBtn.classList.remove('hidden');
+  });
+  installBtn && installBtn.addEventListener('click', async ()=>{
+    if(!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBtn.classList.add('hidden');
+  });
+
+  // Wire camera/gallery buttons
+  cameraBtn && cameraBtn.addEventListener('click', ()=>{ fileCamera && fileCamera.click(); });
+  galleryBtn && galleryBtn.addEventListener('click', ()=>{ fileGallery && fileGallery.click(); });
+
+  // Manejar imagen seleccionada (camera & gallery)
+  function handleFileSelected(e){
     const f = e.target.files && e.target.files[0];
     if(!f) return;
     currentFile = f;
@@ -64,7 +87,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     preview.src = url;
     previewWrap.classList.remove('hidden');
     ocrStatus.textContent = '';
-  });
+  }
+  fileCamera && fileCamera.addEventListener('change', handleFileSelected);
+  fileGallery && fileGallery.addEventListener('change', handleFileSelected);
 
   // Escanear con Tesseract
   scanBtn.addEventListener('click', async ()=>{
@@ -125,7 +150,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const p = phone.value.trim();
     const a = amount.value.trim();
     const cur = currency.value.trim();
-    const separator = Array.from({length:10}).map(()=>'_ ').join('\n');
+    const separator = Array.from({length:10}).map(()=>'_ ').join('');
     const single = [c, p, `${a} ${cur}`].filter(Boolean).join('\n');
     const final = single + '\n' + separator;
     return [final];
@@ -219,7 +244,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       });
 
       resendBtn.addEventListener('click', ()=>{
-        const separator = Array.from({length:10}).map(()=>'_ ').join('\n');
+        const separator = Array.from({length:10}).map(()=>'_ ').join('');
         const single = [item.card || '', item.phone || '', `${item.amount || ''} ${item.currency || ''}`].filter(Boolean).join('\n');
         const final = single + '\n' + separator;
         const to = (item.dest || '').replace(/[^0-9]/g,'');
