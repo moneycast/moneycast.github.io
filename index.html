@@ -11,32 +11,48 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
   <style>
-    body { min-height: 100vh; background: #f5f7fa; }
-    .hero-body .title { font-size: 2rem; }
-    .hero-body .subtitle { font-size: 1rem; }
-    .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #dbdbdb; padding: 0.75rem 0.75rem; }
-    .mobile-bottom-bar .buttons { margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .mobile-bottom-bar .button { flex: 1 1 0; margin: 0; font-size: 0.95rem; min-height: 3.2rem; }
-    .hero-foot .buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
-    .hero-foot .button { flex: 1 1 140px; min-height: 3rem; }
-    .button { font-size: 1rem; line-height: 1.4; padding: 0.85rem 1rem; }
-    .field.is-grouped .button { min-width: 8rem; }
-    .content-wrapper { padding-bottom: 8rem; padding-top: 1rem; }
-    .box { border-radius: 1rem; }
-    .box + .box { margin-top: 1rem; }
-    #preview { max-height: 260px; width: 100%; object-fit: contain; border-radius: 0.75rem; }
-    .is-hidden { display: none !important; }
-    .history-item { border: 1px solid #e8e8e8; border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem; background: #fff; }
+    body { min-height: 100vh; background: #eceff4; color: #1f2937; }
+    .app-shell { max-width: 1040px; margin: 0 auto; }
+    .hero { border-bottom: none; }
+    .hero-body { padding: 2rem 1.5rem; }
+    .hero-body .title { font-size: 2rem; margin-bottom: 0.25rem; }
+    .hero-body .subtitle { font-size: 1rem; opacity: 0.88; }
+    .tabs.is-fullwidth ul { border-radius: 1rem; background: #ffffff; box-shadow: 0 12px 26px rgba(15,23,42,.08); }
+    .tabs.is-fullwidth a { border-radius: 1rem; }
+    .app-card { border-radius: 1.5rem; box-shadow: 0 22px 48px rgba(15,23,42,.08); border: none; }
+    .section.content-wrapper { padding-top: 0.75rem; padding-bottom: 7.5rem; }
+    .field .control .input, .field .control .select, textarea { border-radius: 1rem; }
+    .button { border-radius: 1rem; min-height: 3rem; font-size: 1rem; padding: 0.9rem 1rem; }
+    .button.is-primary, .button.is-link, .button.is-warning, .button.is-danger { box-shadow: 0 10px 18px rgba(15,23,42,.08); }
+    .button.is-light { background: #ffffff; border: 1px solid #d1d5db; color: #1f2937; }
+    .button.is-fullwidth { border-radius: 1rem; }
+    .action-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .action-row .control { flex: 1 1 220px; }
+    #previewWrap { border-radius: 1rem; overflow: hidden; }
+    #previewWrap .box { margin-bottom: 0; }
+    #preview { max-height: 270px; width: 100%; object-fit: contain; }
+    #ocrStatus { display: inline-block; padding: 0.6rem 0.85rem; border-radius: 0.85rem; background: #f8fafc; color: #334155; margin-top: 0.75rem; }
+    .history-item { border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.1rem; margin-bottom: 0.9rem; background: #ffffff; }
     .history-item .buttons { flex-wrap: wrap; gap: 0.5rem; }
+    .preview-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+    .preview-actions .button { flex: 1; }
+    .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #e2e8f0; padding: 0.85rem 0.85rem; }
+    .mobile-bottom-bar .buttons { margin: 0; display: flex; gap: 0.6rem; }
+    .mobile-bottom-bar .button { flex: 1 1 0; }
+    .tab-buttons { width: 100%; }
+    .tab-buttons .button { flex: 1; }
+    .help { margin-top: 0.35rem; }
+    .notification.is-light { border-radius: 1rem; box-shadow: 0 14px 32px rgba(15,23,42,.05); }
     @media screen and (max-width: 768px) {
-      .hero-body .title { font-size: 1.75rem; }
+      .hero-body { padding: 1.5rem 1rem; }
+      .hero-body .title { font-size: 1.7rem; }
       .hero-body .subtitle { font-size: 0.95rem; }
-      .content-wrapper { padding-bottom: 10rem; }
-      .field.has-addons .control { width: 100%; }
-      .field.has-addons .control .button { width: 100%; }
-      .hero-foot .buttons { flex-direction: column; gap: 0.5rem; }
+      .action-row { flex-direction: column; }
+      .field.has-addons.is-flex-wrap-wrap { flex-direction: column; }
+      .field.has-addons.is-flex-wrap-wrap .control { width: 100%; }
+      .hero-foot .buttons { flex-direction: column; align-items: stretch; gap: 0.75rem; }
       .hero-foot .button { width: 100%; }
-      .mobile-bottom-bar .button { font-size: 0.95rem; min-height: 3rem; }
+      .mobile-bottom-bar { padding: 0.7rem 0.7rem; }
     }
   </style>
 </head>
@@ -50,7 +66,7 @@
     </div>
     <div class="hero-foot">
       <div class="container">
-        <div class="buttons has-addons is-centered is-mobile">
+        <div class="buttons tab-buttons is-centered is-mobile">
           <button id="tabFormBtn" class="button is-light is-active">Formulario</button>
           <button id="tabHistoryBtn" class="button is-light">Historial</button>
           <button id="installBtn" class="button is-light is-hidden">Instalar</button>
@@ -83,10 +99,10 @@
                   <div class="control is-expanded">
                     <input id="card" class="input" type="text" inputmode="numeric" placeholder="1234 5678 9012 3456" />
                   </div>
-                  <div class="control is-expanded">
+                  <div class="control">
                     <button id="cameraBtn" type="button" class="button is-primary is-fullwidth">Cámara</button>
                   </div>
-                  <div class="control is-expanded">
+                  <div class="control">
                     <button id="galleryBtn" type="button" class="button is-link is-fullwidth">Galería</button>
                   </div>
                 </div>
@@ -99,8 +115,9 @@
                 <figure class="image is-3by1">
                   <img id="preview" alt="Vista previa" />
                 </figure>
-                <div class="buttons mt-3">
+                <div class="preview-actions">
                   <span id="ocrStatus" class="is-size-7 has-text-grey"></span>
+                  <button id="retryOcrBtn" type="button" class="button is-light is-fullwidth">Reintentar OCR</button>
                 </div>
               </div>
 

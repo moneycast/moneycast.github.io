@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const amount = $('amount');
   const currency = $('currency');
   const previewMessages = $('previewMessages');
+  const retryOcrBtn = $('retryOcrBtn');
   const msgList = $('msgList');
   const messagesSection = $('messages');
   const sendAll = $('sendAll');
@@ -209,30 +210,56 @@ document.addEventListener('DOMContentLoaded', ()=>{
     ctx.drawImage(bitmap, 0, 0);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const text = Ocrad(imageData);
-    const digits = text.replace(/\D/g,'');
+    const digits = cleanCardDigits(text);
     const match = digits.match(/\d{13,19}/);
     if(match){
-      card.value = formatCard(match[0]);
-      ocrStatus.textContent = 'Número reconocido con OCRAD';
+      const cardNumber = formatCard(match[0]);
+      card.value = cardNumber;
+      ocrStatus.textContent = `Número reconocido con OCRAD (${getCardBrand(match[0])})`;
     } else {
       ocrStatus.textContent = 'OCRAD no encontró número de tarjeta';
     }
   }
 
-  // Escanear con Tesseract
-
-  // Formateo simple de tarjeta
-  function formatCard(s){ return s.replace(/(.{4})/g,'$1 ').trim(); }
+  // Formateo y validación de tarjeta
+  function cleanCardDigits(value){ return (value || '').replace(/\D/g,''); }
+  function formatCard(value){
+    const digits = cleanCardDigits(value);
+    return digits.replace(/(.{4})/g,'$1 ').trim();
+  }
+  function isLikelyCardNumber(value){
+    const digits = cleanCardDigits(value);
+    return digits.length >= 13 && digits.length <= 19;
+  }
+  function getCardBrand(value){
+    const digits = cleanCardDigits(value);
+    if(/^4/.test(digits)) return 'Visa';
+    if(/^5[1-5]/.test(digits)) return 'Mastercard';
+    if(/^3[47]/.test(digits)) return 'American Express';
+    if(/^6(?:011|5)/.test(digits)) return 'Discover';
+    if(/^(?:2131|1800|35)/.test(digits)) return 'JCB';
+    if(/^3(?:0[0-5]|[68])/.test(digits)) return 'Diners Club';
+    return 'Tarjeta';
+  }
 
   // Previsualizar mensajes
-  previewMessages.addEventListener('click', ()=>{
+  previewMessages && previewMessages.addEventListener('click', ()=>{
     const msgs = buildMessages();
     msgList.textContent = msgs.join('\n');
     messagesSection.classList.remove('is-hidden');
   });
 
+  retryOcrBtn && retryOcrBtn.addEventListener('click', async ()=>{
+    if(!currentFile){
+      ocrStatus.textContent = 'Primero selecciona una imagen.';
+      return;
+    }
+    await preloadOcr();
+    await scanImage();
+  });
+
   // Enviar mensajes secuencialmente (soporta sin número)
-  sendAll.addEventListener('click', ()=>{
+  sendAll && sendAll.addEventListener('click', ()=>{
     const toRaw = dest.value.trim();
     const to = toRaw.replace(/[^0-9]/g,'');
     const msgs = buildMessages();
