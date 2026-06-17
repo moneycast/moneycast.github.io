@@ -6,6 +6,35 @@ if ('serviceWorker' in navigator) {
 function $(id){return document.getElementById(id)}
 
 document.addEventListener('DOMContentLoaded', ()=>{
+  // Tabs
+  const tabFormBtn = document.getElementById('tabFormBtn');
+  const tabHistoryBtn = document.getElementById('tabHistoryBtn');
+  const tabForm = document.getElementById('tabForm');
+  const tabHistory = document.getElementById('tabHistory');
+
+  function showTab(name){
+    if(name==='form'){
+      tabForm.classList.remove('hidden'); tabHistory.classList.add('hidden');
+      tabFormBtn.classList.add('bg-white/20'); tabHistoryBtn.classList.remove('bg-white/20');
+    } else {
+      tabForm.classList.add('hidden'); tabHistory.classList.remove('hidden');
+      tabHistoryBtn.classList.add('bg-white/20'); tabFormBtn.classList.remove('bg-white/20');
+    }
+  }
+  tabFormBtn && tabFormBtn.addEventListener('click', ()=>showTab('form'));
+  tabHistoryBtn && tabHistoryBtn.addEventListener('click', ()=>showTab('history'));
+  showTab('form');
+
+  // Detect device type and adapt UI
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints>0);
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+  if(isTouch) document.body.classList.add('touch');
+  if(isMobile) document.body.classList.add('device-mobile'); else document.body.classList.add('device-desktop');
+  // If touch device, enlarge actionable buttons
+  if(isTouch){
+    [ 'scanBtn','previewMessages','sendAll' ].forEach(id=>{ const el = document.getElementById(id); if(el) el.classList.add('px-5','py-3','text-base'); });
+  }
+
   const imageInput = $('imageInput');
   const preview = $('preview');
   const previewWrap = $('previewWrap');
@@ -90,22 +119,20 @@ document.addEventListener('DOMContentLoaded', ()=>{
     renderHistory();
   });
 
+  // Construye un único mensaje con solo los datos (sin etiquetas)
   function buildMessages(){
     const c = card.value.trim();
     const p = phone.value.trim();
     const a = amount.value.trim();
     const cur = currency.value.trim();
-    const m1 = `Tarjeta: ${c}`;
-    const m2 = `Teléfono solicitante: ${p}`;
-    const m3 = `Cantidad: ${a} ${cur}`;
     const separator = Array.from({length:10}).map(()=>'_ ').join('\n');
-    return [m1,m2,m3, separator];
+    const single = [c, p, `${a} ${cur}`].filter(Boolean).join('\n');
+    const final = single + '\n' + separator;
+    return [final];
   }
 
-  function isMobile(){ return /Mobi|Android/i.test(navigator.userAgent); }
-
   function sendSequentialWhatsApp(to, msgs){
-    const mobile = isMobile();
+    const mobile = isMobile;
     msgs.forEach((m, i)=>{
       setTimeout(()=>{
         const text = encodeURIComponent(m);
@@ -192,9 +219,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
       });
 
       resendBtn.addEventListener('click', ()=>{
-        const msgs = [ `Tarjeta: ${item.card}`, `Teléfono solicitante: ${item.phone}`, `Cantidad: ${item.amount} ${item.currency}`, Array.from({length:10}).map(()=>'_ ').join('\n') ];
+        const separator = Array.from({length:10}).map(()=>'_ ').join('\n');
+        const single = [item.card || '', item.phone || '', `${item.amount || ''} ${item.currency || ''}`].filter(Boolean).join('\n');
+        const final = single + '\n' + separator;
         const to = (item.dest || '').replace(/[^0-9]/g,'');
-        sendSequentialWhatsApp(to, msgs);
+        sendSequentialWhatsApp(to, [final]);
       });
 
       delBtn.addEventListener('click', ()=>{ if(confirm('Eliminar este registro?')){ deleteHistory(item.id); renderHistory(); } });
