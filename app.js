@@ -170,15 +170,47 @@ document.addEventListener('DOMContentLoaded', ()=>{
         const text = encodeURIComponent(m);
         let url = '';
         if(to){
-          // Send to specific number
-          url = mobile ? `whatsapp://send?phone=${to}&text=${text}` : `https://web.whatsapp.com/send?phone=${to}&text=${text}`;
+          // Send to specific number: prefer app on mobile, use wa.me link on desktop
+          const appUrl = `whatsapp://send?phone=${to}&text=${text}`;
+          const webUrl = `https://wa.me/${to}?text=${text}`;
+          openWithFallback(appUrl, webUrl);
         } else {
-          // No number: open WhatsApp and let user pick contact
-          url = mobile ? `whatsapp://send?text=${text}` : `https://wa.me/?text=${text}`;
+          // No number: open WhatsApp app on mobile, or wa.me web picker on desktop
+          const appUrl = `whatsapp://send?text=${text}`;
+          const webUrl = `https://wa.me/?text=${text}`;
+          openWithFallback(appUrl, webUrl);
         }
-        window.open(url, '_blank');
       }, i * 900);
     });
+  }
+
+  // Try opening appUrl (custom scheme) on mobile; if it doesn't open, fallback to webUrl.
+  function openWithFallback(appUrl, webUrl){
+    if(!isMobile){
+      window.open(webUrl, '_blank');
+      return;
+    }
+
+    let opened = false;
+    const visibilityHandler = ()=>{ opened = true; };
+    document.addEventListener('visibilitychange', visibilityHandler);
+
+    // Try to open via iframe to avoid leaving the page immediately
+    try{
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = appUrl;
+      document.body.appendChild(iframe);
+      setTimeout(()=>{
+        document.body.removeChild(iframe);
+      }, 700);
+    }catch(e){ console.debug('iframe open failed', e); }
+
+    // After timeout, if page still visible, open webUrl
+    setTimeout(()=>{
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      if(!opened){ window.open(webUrl, '_blank'); }
+    }, 800);
   }
 
   // Si la app fue invocada como Share Target (sharedImage en query)
