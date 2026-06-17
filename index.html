@@ -9,14 +9,30 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
   <style>
-    .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #dbdbdb; padding: 0.75rem 0.5rem; }
-    .mobile-bottom-bar .buttons { margin: 0; }
-    .mobile-bottom-bar .button { flex: 1; margin: 0 0.25rem; }
-    .content-wrapper { padding-bottom: 7.5rem; }
-    #preview { max-height: 260px; width: 100%; object-fit: contain; }
+    body { min-height: 100vh; background: #f5f7fa; }
+    .hero-body .title { font-size: 2rem; }
+    .hero-body .subtitle { font-size: 1rem; }
+    .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #dbdbdb; padding: 0.75rem 0.75rem; }
+    .mobile-bottom-bar .buttons { margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .mobile-bottom-bar .button { flex: 1 1 0; margin: 0; font-size: 0.95rem; }
+    .hero-foot .buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+    .hero-foot .button { flex: 1 1 140px; }
+    .content-wrapper { padding-bottom: 8rem; padding-top: 1rem; }
+    .box { border-radius: 1rem; }
+    .box + .box { margin-top: 1rem; }
+    #preview { max-height: 260px; width: 100%; object-fit: contain; border-radius: 0.75rem; }
     .is-hidden { display: none !important; }
-    .history-item { border: 1px solid #e8e8e8; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+    .history-item { border: 1px solid #e8e8e8; border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem; background: #fff; }
     .history-item .buttons { flex-wrap: wrap; gap: 0.5rem; }
+    @media screen and (max-width: 768px) {
+      .hero-body .title { font-size: 1.75rem; }
+      .hero-body .subtitle { font-size: 0.95rem; }
+      .content-wrapper { padding-bottom: 10rem; }
+      .field.has-addons .control { width: 100%; }
+      .field.has-addons .control .button { width: 100%; }
+      .hero-foot .buttons { flex-direction: column; gap: 0.5rem; }
+      .hero-foot .button { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -58,14 +74,14 @@
 
               <div class="field">
                 <label class="label">Número de tarjeta</label>
-                <div class="field is-grouped is-grouped-multiline">
+                <div class="field has-addons is-flex-wrap-wrap">
                   <div class="control is-expanded">
                     <input id="card" class="input" type="text" inputmode="numeric" placeholder="1234 5678 9012 3456" />
                   </div>
-                  <div class="control is-expanded-mobile">
+                  <div class="control is-expanded">
                     <button id="cameraBtn" type="button" class="button is-primary is-fullwidth">Cámara</button>
                   </div>
-                  <div class="control is-expanded-mobile">
+                  <div class="control is-expanded">
                     <button id="galleryBtn" type="button" class="button is-link is-fullwidth">Galería</button>
                   </div>
                 </div>
@@ -111,12 +127,12 @@
                 </div>
               </div>
 
-              <div class="field is-grouped is-grouped-right mt-5">
-                <p class="control">
-                  <button id="previewMessages" type="button" class="button is-warning">Previsualizar</button>
+              <div class="field is-grouped is-grouped-right is-flex-wrap-wrap mt-5">
+                <p class="control is-expanded">
+                  <button id="previewMessages" type="button" class="button is-warning is-fullwidth">Previsualizar</button>
                 </p>
-                <p class="control">
-                  <button id="sendAll" type="button" class="button is-primary">Enviar WhatsApp</button>
+                <p class="control is-expanded">
+                  <button id="sendAll" type="button" class="button is-primary is-fullwidth">Enviar WhatsApp</button>
                 </p>
               </div>
             </form>

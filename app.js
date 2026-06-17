@@ -120,15 +120,19 @@ document.addEventListener('DOMContentLoaded', ()=>{
   async function getOcrWorker(){
     if(ocrWorker) return ocrWorker;
     ocrWorker = Tesseract.createWorker({
-      workerPath: 'https://unpkg.com/tesseract.js@4.0.2/dist/worker.min.js',
-      corePath: 'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
-      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0/',
       gzip: true,
       logger: m => {
         if(m.status === 'recognizing text'){
           ocrStatus.textContent = `OCR ${Math.round(m.progress * 100)}%`;
         } else if(m.status === 'loading tesseract core'){
           ocrStatus.textContent = 'Cargando OCR...';
+        } else if(m.status === 'loading language traineddata'){
+          ocrStatus.textContent = 'Descargando modelo de idioma...';
+        } else if(m.status === 'initialized api'){
+          ocrStatus.textContent = 'OCR listo';
         }
       }
     });
@@ -143,7 +147,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       return ocrWorker;
     }catch(err){
       console.error('OCR init failed', err);
-      ocrStatus.textContent = 'No se pudo inicializar OCR. Revisa tu conexión.';
+      ocrStatus.textContent = 'No se pudo inicializar OCR. Revisa tu conexión o limpia caché.';
       throw err;
     }
   }
