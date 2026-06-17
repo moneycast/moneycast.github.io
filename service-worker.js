@@ -1,5 +1,5 @@
-const CACHE_NAME = 'remesas-pwa-v3';
-const SHARED_IMAGE_CACHE = 'remesas-shared-image-v1';
+const CACHE_NAME = 'remesas-pwa-v4';
+const SHARED_IMAGE_CACHE = 'remesas-shared-image-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -46,12 +46,13 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   swLog('fetch for', event.request.method, url.pathname, 'accept:', event.request.headers.get('accept'), 'content-type:', event.request.headers.get('content-type'));
 
-  // ── Handle Web Share Target POST (accept POSTs with multipart/form-data)
-  if (event.request.method === 'POST') {
+  // ── Handle Web Share Target POST only for the app's share action path
+  if (event.request.method === 'POST' && url.origin === self.location.origin) {
+    const shareTargetPath = new URL('index.html', self.registration.scope).pathname;
     const contentType = event.request.headers.get('content-type') || '';
     const isMultipart = contentType.includes('multipart/form-data');
-    swLog('POST detected. isMultipart=', isMultipart, 'pathname=', url.pathname);
-    if (isMultipart) {
+    swLog('POST detected. isMultipart=', isMultipart, 'pathname=', url.pathname, 'shareTargetPath=', shareTargetPath);
+    if (isMultipart && url.pathname === shareTargetPath) {
       event.respondWith(handleShareTarget(event.request));
       return;
     }
@@ -63,7 +64,15 @@ self.addEventListener('fetch', event => {
   if (isHtmlNavigation) {
     const indexRequest = new Request(new URL('index.html', self.registration.scope).href);
     event.respondWith(
-      caches.match(indexRequest).then(response => response || fetch(event.request))
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.ok) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(indexRequest, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(indexRequest))
     );
     return;
   }
