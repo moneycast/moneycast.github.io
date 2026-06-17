@@ -14,11 +14,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   function showTab(name){
     if(name==='form'){
-      tabForm.classList.remove('hidden'); tabHistory.classList.add('hidden');
-      tabFormBtn.classList.add('bg-white/20'); tabHistoryBtn.classList.remove('bg-white/20');
+      tabForm.classList.remove('is-hidden'); tabHistory.classList.add('is-hidden');
+      tabFormBtn.classList.add('is-active'); tabHistoryBtn.classList.remove('is-active');
     } else {
-      tabForm.classList.add('hidden'); tabHistory.classList.remove('hidden');
-      tabHistoryBtn.classList.add('bg-white/20'); tabFormBtn.classList.remove('bg-white/20');
+      tabForm.classList.add('is-hidden'); tabHistory.classList.remove('is-hidden');
+      tabHistoryBtn.classList.add('is-active'); tabFormBtn.classList.remove('is-active');
     }
   }
   tabFormBtn && tabFormBtn.addEventListener('click', ()=>showTab('form'));
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if(isMobile) document.body.classList.add('device-mobile'); else document.body.classList.add('device-desktop');
   // If touch device, enlarge actionable buttons
   if(isTouch){
-    [ 'scanBtn','previewMessages','sendAll' ].forEach(id=>{ const el = document.getElementById(id); if(el) el.classList.add('px-5','py-3','text-base'); });
+    [ 'scanBtn','previewMessages','sendAll' ].forEach(id=>{ const el = document.getElementById(id); if(el) el.classList.add('is-large'); });
   }
   // File inputs / camera & gallery buttons
   const fileCamera = $('fileCamera');
@@ -64,14 +64,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   window.addEventListener('beforeinstallprompt', (e)=>{
     e.preventDefault();
     deferredPrompt = e;
-    if(installBtn) installBtn.classList.remove('hidden');
+    if(installBtn) installBtn.classList.remove('is-hidden');
   });
   installBtn && installBtn.addEventListener('click', async ()=>{
     if(!deferredPrompt) return;
     deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
     deferredPrompt = null;
-    installBtn.classList.add('hidden');
+    installBtn.classList.add('is-hidden');
   });
 
   // Wire camera/gallery buttons
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     currentFile = f;
     const url = URL.createObjectURL(f);
     preview.src = url;
-    previewWrap.classList.remove('hidden');
+    previewWrap.classList.remove('is-hidden');
     ocrStatus.textContent = '';
   }
   fileCamera && fileCamera.addEventListener('change', handleFileSelected);
@@ -124,9 +124,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // Previsualizar mensajes
   previewMessages.addEventListener('click', ()=>{
     const msgs = buildMessages();
-    msgList.innerHTML = '';
-    msgs.forEach(m=>{ const li = document.createElement('li'); li.textContent = m; msgList.appendChild(li); });
-    messagesSection.classList.remove('hidden');
+    msgList.innerHTML = msgs.join('\n');
+    messagesSection.classList.remove('is-hidden');
   });
 
   // Enviar mensajes secuencialmente (soporta sin número)
@@ -219,7 +218,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const dataUrl = params.get('sharedImage');
     if(dataUrl){
       preview.src = dataUrl;
-      previewWrap.classList.remove('hidden');
+      previewWrap.classList.remove('is-hidden');
       // crear un File a partir del dataURL para usar con Tesseract
       dataURLToFile(dataUrl, 'shared.jpg').then(f=>{ currentFile = f; setTimeout(()=>$('scanBtn').click(),300); });
     }
@@ -255,21 +254,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
   function renderHistory(){
     const list = loadHistory();
     historyList.innerHTML = '';
-    if(list.length===0){ historyList.innerHTML = '<li class="py-2 text-sm text-gray-500">Sin historial</li>'; return; }
+    if(list.length===0){ historyList.innerHTML = '<div class="has-text-grey">Sin historial</div>'; return; }
     list.forEach(item=>{
-      const li = document.createElement('li');
-      li.className = 'py-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2';
-      const left = document.createElement('div');
-      left.className = 'break-words';
-      left.innerHTML = `<div class="text-sm font-medium">${item.card || '—'}</div><div class="text-xs text-gray-500">${item.amount || ''} ${item.currency||''} • ${new Date(item.ts).toLocaleString()}</div>`;
-      const actions = document.createElement('div'); actions.className = 'flex gap-2';
-      const viewBtn = document.createElement('button'); viewBtn.textContent = 'Ver'; viewBtn.className='text-sm text-sky-600';
-      const editBtn = document.createElement('button'); editBtn.textContent = 'Editar'; editBtn.className='text-sm text-amber-600';
-      const resendBtn = document.createElement('button'); resendBtn.textContent = 'Reenviar'; resendBtn.className='text-sm text-green-600';
-      const delBtn = document.createElement('button'); delBtn.textContent = 'Borrar'; delBtn.className='text-sm text-red-600';
+      const card = document.createElement('div');
+      card.className = 'history-item';
+      const header = document.createElement('div');
+      header.className = 'content';
+      header.innerHTML = `<p><strong>${item.card || '—'}</strong></p><p class="is-size-7 has-text-grey">${item.amount || ''} ${item.currency||''} • ${new Date(item.ts).toLocaleString()}</p>`;
+      const actions = document.createElement('div'); actions.className = 'buttons is-flex-wrap-wrap';
+      const viewBtn = document.createElement('button'); viewBtn.textContent = 'Ver'; viewBtn.className='button is-small is-info is-light';
+      const editBtn = document.createElement('button'); editBtn.textContent = 'Editar'; editBtn.className='button is-small is-warning is-light';
+      const resendBtn = document.createElement('button'); resendBtn.textContent = 'Reenviar'; resendBtn.className='button is-small is-success is-light';
+      const delBtn = document.createElement('button'); delBtn.textContent = 'Borrar'; delBtn.className='button is-small is-danger is-light';
       actions.append(viewBtn, editBtn, resendBtn, delBtn);
-      li.append(left, actions);
-      historyList.appendChild(li);
+      card.append(header, actions);
+      historyList.appendChild(card);
 
       viewBtn.addEventListener('click', ()=>{ alert(`Tarjeta: ${item.card}\nTel: ${item.phone}\nCantidad: ${item.amount} ${item.currency}`); });
 

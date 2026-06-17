@@ -2,126 +2,156 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mini PWA: Enviar por WhatsApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MoneyCast · WhatsApp</title>
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#0ea5a4">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="theme-color" content="#00d1b2">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
+  <style>
+    .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #dbdbdb; }
+    .mobile-bottom-bar .button { flex: 1; margin: 0 0.25rem; }
+    .content-wrapper { padding-bottom: 5rem; }
+    #preview { max-height: 280px; width: 100%; object-fit: contain; }
+    .is-hidden { display: none !important; }
+    .history-item { border: 1px solid #e8e8e8; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+    .history-item .buttons { flex-wrap: wrap; gap: 0.5rem; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-800">
-  <div class="max-w-5xl mx-auto p-6">
-    <header class="mb-6 bg-gradient-to-r from-teal-400 to-sky-500 rounded-xl p-4 text-white shadow-lg">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-semibold">MoneyCast — Envío por WhatsApp</h1>
-          <p class="text-sm opacity-90">Instalable · OCR de tarjeta · Historial</p>
-        </div>
-        <nav class="space-x-2">
-          <button id="tabFormBtn" class="px-3 py-2 bg-white/20 rounded-md text-sm">Formulario</button>
-          <button id="tabHistoryBtn" class="px-3 py-2 bg-white/10 rounded-md text-sm">Historial</button>
-          <button id="installBtn" class="px-3 py-2 bg-white/10 rounded-md text-sm hidden">Instalar</button>
-        </nav>
+<body>
+  <section class="hero is-primary is-bold">
+    <div class="hero-body">
+      <div class="container">
+        <h1 class="title">MoneyCast</h1>
+        <h2 class="subtitle">Envía datos a WhatsApp con OCR y guarda tu historial.</h2>
       </div>
-    </header>
-
-    <main id="appMain" class="bg-white shadow rounded-lg p-6">
-      <div id="tabForm" class="space-y-4">
-        <form id="form" class="space-y-4" onsubmit="return false;">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Número destino (WhatsApp, con código de país)</label>
-          <input id="dest" type="tel" inputmode="numeric" placeholder="34123456789" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:ring-2 focus:ring-teal-300 p-2" />
+    </div>
+    <div class="hero-foot">
+      <div class="container">
+        <div class="buttons has-addons is-centered is-mobile">
+          <button id="tabFormBtn" class="button is-light is-active">Formulario</button>
+          <button id="tabHistoryBtn" class="button is-light">Historial</button>
+          <button id="installBtn" class="button is-light is-hidden">Instalar</button>
         </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Número de tarjeta</label>
-          <div class="flex gap-2 mt-1">
-            <input id="card" type="text" inputmode="numeric" placeholder="1234 5678 9012 3456" class="flex-1 rounded-md border-gray-200 p-2" />
-            <input id="fileCamera" type="file" accept="image/*" capture="environment" class="hidden" />
-            <input id="fileGallery" type="file" accept="image/*" class="hidden" />
-            <button id="cameraBtn" type="button" class="bg-teal-500 text-white px-3 py-2 rounded-md cursor-pointer text-sm flex items-center gap-2 whitespace-nowrap">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7h18M3 12h18M3 17h18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Cámara
-            </button>
-            <button id="galleryBtn" type="button" class="bg-teal-300 text-white px-3 py-2 rounded-md cursor-pointer text-sm flex items-center gap-2 whitespace-nowrap">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="14" rx="2" ry="2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Galería
-            </button>
-          </div>
-          <p class="text-xs text-gray-500 mt-1">Puedes tomar una foto, elegir de galería o compartir desde otra app.</p>
-        </div>
-
-        <div id="previewWrap" class="hidden">
-          <img id="preview" alt="preview" class="w-full rounded-md mt-2 object-contain border" />
-            <div class="mt-2 flex gap-2">
-            <button type="button" id="scanBtn" class="bg-indigo-600 text-white px-3 py-2 rounded-md">Escanear OCR</button>
-            <span id="ocrStatus" class="text-sm self-center text-gray-600"></span>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Teléfono del solicitante</label>
-          <input id="phone" type="tel" inputmode="numeric" placeholder="34123456789" class="mt-1 block w-full rounded-md border-gray-200 p-2" />
-        </div>
-
-        <div class="grid grid-cols-3 gap-2">
-          <div class="col-span-2">
-            <label class="block text-sm font-medium text-gray-700">Cantidad</label>
-            <input id="amount" type="number" min="0" step="0.01" placeholder="100.00" class="mt-1 block w-full rounded-md border-gray-200 p-2" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Moneda</label>
-            <input id="currency" type="text" placeholder="USD" class="mt-1 block w-full rounded-md border-gray-200 p-2" />
-          </div>
-        </div>
-
-        <div class="pt-4 border-t">
-            <div class="flex gap-2">
-            <button id="previewMessages" type="button" class="bg-teal-600 text-white px-4 py-2 rounded-md">Previsualizar</button>
-            <button id="sendAll" type="button" class="bg-blue-600 text-white px-4 py-2 rounded-md">Enviar a WhatsApp</button>
-          </div>
-        </div>
-
-        </form>
-
-        <section id="messages" class="mt-4 hidden">
-        <h3 class="font-medium">Mensajes a enviar</h3>
-        <ol id="msgList" class="list-decimal pl-5 mt-2 text-sm text-gray-700"></ol>
-      </section>
       </div>
+    </div>
+  </section>
 
-      <div id="tabHistory" class="hidden">
-        <section class="mt-2">
-          <div class="flex items-center justify-between">
-            <h3 class="font-medium">Historial de operaciones</h3>
-            <div class="flex gap-2">
-              <button id="clearHistory" type="button" class="text-sm text-red-600">Limpiar todo</button>
+  <section class="section content-wrapper">
+    <div class="container">
+      <div class="columns is-variable is-6 is-multiline">
+        <div class="column is-8">
+          <div id="tabForm" class="box">
+            <div class="content">
+              <h3 class="title is-4">Formulario de envío</h3>
+            </div>
+            <form id="form" onsubmit="return false;">
+              <div class="field">
+                <label class="label">Número destino</label>
+                <div class="control has-icons-left">
+                  <input id="dest" class="input" type="tel" inputmode="numeric" placeholder="34123456789" />
+                  <span class="icon is-small is-left"><i class="fas fa-phone"></i></span>
+                </div>
+                <p class="help">Incluye código de país o deja vacío para elegir contacto en WhatsApp.</p>
+              </div>
+
+              <div class="field">
+                <label class="label">Número de tarjeta</label>
+                <div class="field has-addons">
+                  <div class="control is-expanded">
+                    <input id="card" class="input" type="text" inputmode="numeric" placeholder="1234 5678 9012 3456" />
+                  </div>
+                  <div class="control">
+                    <button id="cameraBtn" type="button" class="button is-primary">Cámara</button>
+                  </div>
+                  <div class="control">
+                    <button id="galleryBtn" type="button" class="button is-link">Galería</button>
+                  </div>
+                </div>
+                <p class="help">Captura la tarjeta o elige una imagen para extraer automáticamente el número.</p>
+              </div>
+
+              <div id="previewWrap" class="box is-hidden">
+                <figure class="image is-3by1">
+                  <img id="preview" alt="Vista previa" />
+                </figure>
+                <div class="buttons mt-3">
+                  <button id="scanBtn" type="button" class="button is-info">Escanear OCR</button>
+                  <span id="ocrStatus" class="is-size-7 has-text-grey"></span>
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label">Teléfono del solicitante</label>
+                <div class="control has-icons-left">
+                  <input id="phone" class="input" type="tel" inputmode="numeric" placeholder="34123456789" />
+                  <span class="icon is-small is-left"><i class="fas fa-user"></i></span>
+                </div>
+              </div>
+
+              <div class="columns is-multiline">
+                <div class="column is-two-thirds">
+                  <div class="field">
+                    <label class="label">Cantidad</label>
+                    <div class="control has-icons-left">
+                      <input id="amount" class="input" type="number" min="0" step="0.01" placeholder="100.00" />
+                      <span class="icon is-small is-left"><i class="fas fa-dollar-sign"></i></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="column is-one-third">
+                  <div class="field">
+                    <label class="label">Moneda</label>
+                    <div class="control">
+                      <input id="currency" class="input" type="text" placeholder="USD" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field is-grouped is-grouped-right mt-5">
+                <p class="control">
+                  <button id="previewMessages" type="button" class="button is-warning">Previsualizar</button>
+                </p>
+                <p class="control">
+                  <button id="sendAll" type="button" class="button is-primary">Enviar WhatsApp</button>
+                </p>
+              </div>
+            </form>
+
+            <div id="messages" class="notification is-light is-hidden">
+              <h4 class="title is-6">Mensaje a enviar</h4>
+              <pre id="msgList" class="is-family-monospace"></pre>
             </div>
           </div>
-          <ul id="historyList" class="mt-3 divide-y"></ul>
-        </section>
+        </div>
+
+        <div class="column is-4">
+          <div id="tabHistory" class="box is-hidden">
+            <div class="content">
+              <h3 class="title is-5">Historial</h3>
+            </div>
+            <div class="field">
+              <div class="control">
+                <button id="clearHistory" type="button" class="button is-danger is-fullwidth">Limpiar todo</button>
+              </div>
+            </div>
+            <div id="historyList"></div>
+          </div>
+        </div>
       </div>
+    </div>
+  </section>
 
-      <input type="hidden" id="editingId" />
-    </main>
+  <div class="mobile-bottom-bar is-hidden-tablet">
+    <div class="buttons is-centered is-fullwidth">
+      <button id="bbFormBtn" class="button is-light is-fullwidth">Formulario</button>
+      <button id="bbHistoryBtn" class="button is-light is-fullwidth">Historial</button>
+      <button id="bbCameraBtn" class="button is-primary is-fullwidth">Cámara</button>
+    </div>
   </div>
 
-  <!-- Mobile bottom bar -->
-  <div id="mobileBar" class="fixed bottom-0 left-0 right-0 bg-white shadow-md py-2 px-4 flex justify-around items-center md:hidden">
-    <button id="bbFormBtn" class="flex flex-col items-center text-sm text-gray-700">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h18M3 6h18M3 18h18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Formulario
-    </button>
-    <button id="bbHistoryBtn" class="flex flex-col items-center text-sm text-gray-700">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7h18M3 12h18M3 17h18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Historial
-    </button>
-    <button id="bbCameraBtn" class="flex flex-col items-center text-sm text-gray-700">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
-      Cámara
-    </button>
-  </div>
-
+  <script defer src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
   <script src="/app.js"></script>
 </body>
 </html>
