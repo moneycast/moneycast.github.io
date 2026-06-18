@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escáner de Tarjetas Local</title>
-    <!-- Carga local de Tailwind CSS con fallback automático a CDN si no existe localmente -->
+    <!-- Intentar cargar Tailwind localmente; si falla, cargar fallback desde CDN -->
     <script src="tailwind.js" onerror="this.onerror=null; var script = document.createElement('script'); script.src='https://cdn.tailwindcss.com'; document.head.appendChild(script);"></script>
-    <!-- Tesseract.js para OCR local en el navegador -->
+    <!-- Motor OCR Tesseract.js cargado desde CDN para procesamiento en cliente -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <!-- Enlace al manifest (soporta carga directa si se hospeda con el archivo generado) -->
+    <!-- Enlace al archivo de manifiesto PWA -->
     <link rel="manifest" href="manifest.json">
 </head>
 <body class="bg-slate-900 min-h-screen text-slate-100 flex flex-col items-center justify-center p-4">
@@ -22,15 +22,28 @@
         <!-- Visor de la Cámara -->
         <div class="relative w-full h-56 bg-black rounded-xl overflow-hidden border-2 border-emerald-500">
             <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+            
             <!-- Cuadro guía para enfocar la tarjeta -->
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div id="camera-guide" class="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div class="w-64 h-40 border-2 border-dashed border-emerald-400 rounded-lg bg-black/20"></div>
             </div>
+
+            <!-- Overlay de carga/procesamiento OCR -->
+            <div id="ocr-loading" class="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center space-y-3 hidden">
+                <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-emerald-400"></div>
+                <span class="text-xs text-emerald-400 font-semibold tracking-wider">Leyendo tarjeta de forma local...</span>
+            </div>
+
             <!-- Estado de la detección -->
             <div id="scan-status" class="absolute bottom-2 left-0 right-0 text-center text-xs text-white bg-slate-950/80 py-1 px-2 font-medium">
                 Iniciando cámara trasera...
             </div>
         </div>
+
+        <!-- Botón para Capturar y Analizar (Evita cuellos de botella al procesar bajo demanda) -->
+        <button id="btn-capture" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg text-sm transition active:scale-95 flex items-center justify-center gap-2">
+            📸 Capturar y Escanear Tarjeta
+        </button>
 
         <!-- Botón para instalar PWA (Se muestra dinámicamente) -->
         <button id="btn-install-pwa" class="hidden w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-2 px-4 rounded-xl shadow text-sm transition active:scale-95">
@@ -53,7 +66,7 @@
         <div class="bg-slate-950 p-4 rounded-xl border border-slate-700">
             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Número de Tarjeta</label>
             <div id="card-display" class="text-xl font-mono font-bold text-slate-500 mt-1 tracking-widest text-center">
-                Alinea la tarjeta o sube una foto
+                Alinea la tarjeta y presiona capturar
             </div>
         </div>
 
@@ -64,6 +77,11 @@
                 <label for="client-phone" class="block text-xs font-semibold text-slate-300 mb-1">Teléfono del Cliente (Opcional)</label>
                 <input type="tel" id="client-phone" placeholder="Ej: +53 51234567" 
                        class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                <!-- Números recientes del cliente -->
+                <div id="recent-clients-container" class="mt-1.5 hidden">
+                    <span class="text-[10px] text-slate-400 font-medium">Recientes:</span>
+                    <div id="recent-clients-list" class="flex flex-wrap gap-1 mt-0.5"></div>
+                </div>
             </div>
 
             <!-- Fila de Monto y Moneda -->
@@ -90,6 +108,11 @@
                 </label>
                 <input type="tel" id="whatsapp-dest" placeholder="Vacío para elegir contacto en WhatsApp" 
                        class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                <!-- Destinos recientes -->
+                <div id="recent-dests-container" class="mt-1.5 hidden">
+                    <span class="text-[10px] text-slate-400 font-medium">Recientes:</span>
+                    <div id="recent-dests-list" class="flex flex-wrap gap-1 mt-0.5"></div>
+                </div>
             </div>
 
             <!-- Opción de Mensajes Separados -->
@@ -106,11 +129,19 @@
         </div>
 
         <!-- Botones de Acción -->
-        <div class="flex gap-3 pt-2">
-            <button id="btn-retry" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-xl transition active:scale-95 text-sm">
-                Re-escanear
-            </button>
-            <button id="btn-send" disabled class="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition active:scale-95 text-sm">
+        <div class="flex flex-col gap-3 pt-2">
+            <div class="flex gap-3">
+                <!-- Botón Re-escanear -->
+                <button id="btn-retry" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-xl transition active:scale-95 text-sm">
+                    Re-escanear
+                </button>
+                <!-- Botón Limpiar Campos -->
+                <button id="btn-clear" class="flex-1 bg-rose-950/40 hover:bg-rose-900/40 text-rose-300 border border-rose-800/50 font-semibold py-3 rounded-xl transition active:scale-95 text-sm">
+                    🧹 Limpiar Campos
+                </button>
+            </div>
+            <!-- Botón Principal Enviar -->
+            <button id="btn-send" disabled class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition active:scale-95 text-sm">
                 Enviar WhatsApp
             </button>
         </div>
@@ -155,21 +186,30 @@
         const currencySelect = document.getElementById('currency');
         const destInput = document.getElementById('whatsapp-dest');
         const btnRetry = document.getElementById('btn-retry');
+        const btnClear = document.getElementById('btn-clear');
         const btnSend = document.getElementById('btn-send');
+        const btnCapture = document.getElementById('btn-capture');
+        const ocrLoading = document.getElementById('ocr-loading');
+        const cameraGuide = document.getElementById('camera-guide');
         const statusMessage = document.getElementById('status-message');
         const fileInput = document.getElementById('file-input');
         const btnInstallPwa = document.getElementById('btn-install-pwa');
         const chkSeparate = document.getElementById('chk-separate');
 
+        // Contenedores de elementos del historial reciente
+        const recentClientsContainer = document.getElementById('recent-clients-container');
+        const recentClientsList = document.getElementById('recent-clients-list');
+        const recentDestsContainer = document.getElementById('recent-dests-container');
+        const recentDestsList = document.getElementById('recent-dests-list');
+
         let isScanning = true;
         let detectedNumber = "";
-        let scanInterval;
         let deferredPrompt;
 
         let sendQueue = [];
         let queueIndex = 0;
 
-        // Mostrar estados/alertas de forma amigable
+        // Mostrar estados/alertas de forma amigable sin usar alert()
         function showNotification(text, isError = false) {
             statusMessage.innerText = text;
             statusMessage.className = `p-3 rounded-xl text-xs text-center block ${isError ? 'bg-red-950/40 border border-red-900/50 text-red-400' : 'bg-emerald-950/40 border border-emerald-900/50 text-emerald-400'}`;
@@ -178,7 +218,7 @@
             }, 6000);
         }
 
-        // Iniciar la cámara trasera para escaneo continuo
+        // Iniciar la cámara trasera (solo visor, sin bucles OCR continuos)
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -190,40 +230,53 @@
                     audio: false
                 });
                 video.srcObject = stream;
-                scanStatus.innerText = "Buscando tarjeta... Mantén la cámara fija";
-                scanInterval = setInterval(analyzeFrame, 2000);
+                scanStatus.innerText = "Cámara lista. Presiona el botón verde para escanear.";
+                btnCapture.disabled = false;
+                cameraGuide.classList.remove('hidden');
             } catch (err) {
                 console.error("Error al acceder a la cámara:", err);
                 scanStatus.innerText = "Cámara no activa (Modo Galería / Compartido)";
+                btnCapture.disabled = true;
+                cameraGuide.classList.add('hidden');
             }
         }
 
-        // Capturar fotograma y procesarlo con OCR local
-        async function analyzeFrame() {
-            if (!isScanning) return;
-
+        // Capturar fotograma bajo demanda y analizarlo con OCR local (Evita cuellos de botella)
+        async function captureAndAnalyze() {
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             
-            if (canvas.width === 0 || canvas.height === 0) return;
+            if (canvas.width === 0 || canvas.height === 0) {
+                showNotification("Asegúrate de que la cámara esté activa para capturar.", true);
+                return;
+            }
 
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // Mostrar animación de carga local
+            ocrLoading.classList.remove('hidden');
             scanStatus.innerText = "Analizando fotograma...";
 
+            // Dibujar cuadro actual de la cámara en el canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
             try {
+                // Ejecutar Tesseract OCR una sola vez buscando números
                 const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
                     tessedit_char_whitelist: '0123456789 -'
                 });
 
-                processOCRText(text);
+                processOCRResult(text);
             } catch (err) {
                 console.error("Error en el procesado de imagen:", err);
+                showNotification("Error al procesar la imagen de forma local.", true);
+            } finally {
+                // Ocultar animación de carga
+                ocrLoading.classList.add('hidden');
             }
         }
 
-        // Analizar y validar el texto obtenido por OCR
-        function processOCRText(text) {
+        // Procesar y validar el número capturado
+        function processOCRResult(text) {
             const cleanDigits = text.replace(/[\s-]/g, '');
             const cardMatch = cleanDigits.match(/\d{13,19}/);
 
@@ -232,9 +285,8 @@
                 if (luhnCheck(numberCandidate)) {
                     detectedNumber = numberCandidate;
                     isScanning = false;
-                    clearInterval(scanInterval);
                     
-                    // Detener cámara para ahorrar batería
+                    // Detener cámara para ahorrar batería y CPU
                     if (video.srcObject) {
                         video.srcObject.getTracks().forEach(track => track.stop());
                     }
@@ -245,11 +297,13 @@
                     cardDisplay.classList.add('text-emerald-400');
                     scanStatus.innerText = "¡Tarjeta detectada con éxito!";
                     validateForm();
+                } else {
+                    scanStatus.innerText = "No se detectó número de tarjeta real.";
+                    showNotification("El número detectado no pasó el algoritmo de Luhn. Prueba otra vez de forma más nítida.", true);
                 }
             } else {
-                if (isScanning) {
-                    scanStatus.innerText = "Buscando tarjeta... Encuédrala en la guía";
-                }
+                scanStatus.innerText = "No se encontraron números.";
+                showNotification("No pudimos reconocer ningún número. Coloca la tarjeta más cerca de la guía.", true);
             }
         }
 
@@ -257,6 +311,7 @@
         function processImageFile(file) {
             if (!file) return;
             scanStatus.innerText = "Cargando imagen...";
+            ocrLoading.classList.remove('hidden');
             
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -267,9 +322,8 @@
                     canvas.height = img.height;
                     ctx.drawImage(img, 0, 0);
 
-                    // Detener el escaneo en vivo activo
+                    // Detener el visor en vivo activo
                     isScanning = false;
-                    clearInterval(scanInterval);
                     if (video.srcObject) {
                         video.srcObject.getTracks().forEach(track => track.stop());
                     }
@@ -291,12 +345,14 @@
                             scanStatus.innerText = "¡Tarjeta procesada con éxito!";
                             validateForm();
                         } else {
-                            scanStatus.innerText = "No se detectó un número de tarjeta válido.";
-                            showNotification("No pudimos reconocer una tarjeta válida en la foto. Intenta con otra imagen más nítida.", true);
+                            scanStatus.innerText = "No se detectó una tarjeta válida.";
+                            showNotification("No pudimos reconocer una tarjeta válida en la foto de la galería.", true);
                         }
                     } catch (err) {
                         console.error("Error al analizar archivo:", err);
-                        scanStatus.innerText = "Error al analizar el archivo.";
+                        scanStatus.innerText = "Error al analizar el archivo de la galería.";
+                    } finally {
+                        ocrLoading.classList.add('hidden');
                     }
                 };
                 img.src = event.target.result;
@@ -337,7 +393,7 @@
         btnRetry.addEventListener('click', async () => {
             isScanning = true;
             detectedNumber = "";
-            cardDisplay.innerText = "Alinea la tarjeta en el recuadro";
+            cardDisplay.innerText = "Alinea la tarjeta y presiona capturar";
             cardDisplay.classList.remove('text-emerald-400');
             cardDisplay.classList.add('text-slate-500');
             
@@ -345,13 +401,47 @@
             sendQueue = [];
             queueIndex = 0;
             btnSend.innerText = "Enviar WhatsApp";
-            btnSend.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition active:scale-95 text-sm";
+            btnSend.className = "w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition active:scale-95 text-sm";
             
             btnSend.disabled = true;
-            scanStatus.innerText = "Iniciando cámara...";
             fileInput.value = "";
-            clearInterval(scanInterval);
             await initCamera();
+        });
+
+        // Limpiar todos los campos y resetear el estado de la cámara
+        btnClear.addEventListener('click', async () => {
+            // Limpiar inputs
+            clientPhoneInput.value = "";
+            amountInput.value = "";
+            currencySelect.value = "CUP";
+            destInput.value = "";
+            
+            // Limpiar tarjeta detectada
+            detectedNumber = "";
+            cardDisplay.innerText = "Alinea la tarjeta y presiona capturar";
+            cardDisplay.classList.remove('text-emerald-400');
+            cardDisplay.classList.add('text-slate-500');
+            
+            // Resetear colas
+            sendQueue = [];
+            queueIndex = 0;
+            btnSend.innerText = "Enviar WhatsApp";
+            btnSend.className = "w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition active:scale-95 text-sm";
+            btnSend.disabled = true;
+            fileInput.value = "";
+            
+            isScanning = true;
+            await initCamera();
+            showNotification("Todos los campos han sido limpiados.");
+        });
+
+        // Capturar foto bajo demanda al presionar el botón de disparo
+        btnCapture.addEventListener('click', () => {
+            if (isScanning) {
+                captureAndAnalyze();
+            } else {
+                showNotification("La tarjeta ya fue detectada. Presiona 'Re-escanear' primero.");
+            }
         });
 
         // Escucha de subida de archivo desde galería
@@ -359,6 +449,63 @@
             const file = e.target.files[0];
             processImageFile(file);
         });
+
+        // Guardar números en localStorage para la función de números recientes
+        function saveToHistory(storageKey, value) {
+            if (!value) return;
+            const cleanVal = value.replace(/[\s-]/g, '');
+            if (!cleanVal) return;
+
+            let list = JSON.parse(localStorage.getItem(storageKey)) || [];
+            // Evitar duplicados y mantener solo los últimos 4
+            list = list.filter(item => item !== cleanVal);
+            list.unshift(cleanVal);
+            if (list.length > 4) list.pop();
+
+            localStorage.setItem(storageKey, JSON.stringify(list));
+            loadHistories();
+        }
+
+        // Cargar los historiales guardados y mostrar los pills de acceso rápido
+        function loadHistories() {
+            // 1. Clientes Recientes
+            const clients = JSON.parse(localStorage.getItem('recent_clients')) || [];
+            if (clients.length > 0) {
+                recentClientsContainer.classList.remove('hidden');
+                recentClientsList.innerHTML = '';
+                clients.forEach(num => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'bg-slate-700 hover:bg-slate-600 text-slate-200 text-[10px] py-1 px-2.5 rounded-full transition font-semibold';
+                    btn.innerText = num;
+                    btn.onclick = () => {
+                        clientPhoneInput.value = num;
+                    };
+                    recentClientsList.appendChild(btn);
+                });
+            } else {
+                recentClientsContainer.classList.add('hidden');
+            }
+
+            // 2. Destinos de WhatsApp Recientes
+            const dests = JSON.parse(localStorage.getItem('recent_dests')) || [];
+            if (dests.length > 0) {
+                recentDestsContainer.classList.remove('hidden');
+                recentDestsList.innerHTML = '';
+                dests.forEach(num => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'bg-slate-700 hover:bg-slate-600 text-slate-200 text-[10px] py-1 px-2.5 rounded-full transition font-semibold';
+                    btn.innerText = num;
+                    btn.onclick = () => {
+                        destInput.value = num;
+                    };
+                    recentDestsList.appendChild(btn);
+                });
+            } else {
+                recentDestsContainer.classList.add('hidden');
+            }
+        }
 
         // Enviar datos dinámicos a WhatsApp
         btnSend.addEventListener('click', () => {
@@ -375,6 +522,8 @@
                     clientPhone = '+' + clientPhone;
                 }
                 phoneLine = clientPhone;
+                // Guardar en el historial de recientes
+                saveToHistory('recent_clients', clientPhone);
             }
 
             // Línea de Dinero (Si no se escribe, no se incluye en el mensaje final)
@@ -385,19 +534,23 @@
                 amountLine = `${amountValue} ${currencyValue}`;
             }
 
+            // Guardar el número del destinatario de WhatsApp si fue especificado
             const destPhone = destInput.value.replace(/[\s+-]/g, '').trim();
+            if (destPhone) {
+                saveToHistory('recent_dests', destPhone);
+            }
 
             if (chkSeparate.checked) {
-                // Si la cola de envío está vacía, la preparamos respetando el orden estricto
+                // Preparar la cola de envío por separado en el orden específico requerido
                 if (sendQueue.length === 0) {
-                    if (phoneLine) sendQueue.push(phoneLine); // 1. Teléfono del cliente
-                    sendQueue.push(cardLine);                 // 2. Número de tarjeta
-                    if (amountLine) sendQueue.push(amountLine); // 3. Cantidad a enviar
-                    sendQueue.push("----------");             // 4. Divisor final de cierre
+                    if (phoneLine) sendQueue.push(phoneLine);    // 1. Teléfono del cliente
+                    sendQueue.push(cardLine);                    // 2. Número de tarjeta
+                    if (amountLine) sendQueue.push(amountLine);    // 3. Cantidad a enviar
+                    sendQueue.push("----------");                // 4. Divisor final obligatorio
                     queueIndex = 0;
                 }
 
-                // Obtener el mensaje actual de la lista
+                // Obtener mensaje actual de la cola de envíos
                 const currentMsg = sendQueue[queueIndex];
                 
                 let whatsappUrl = "";
@@ -410,25 +563,24 @@
                 window.open(whatsappUrl, '_blank');
                 queueIndex++;
 
-                // Actualizar visualmente el botón principal según el progreso de la cola
+                // Actualizar el estado del botón principal según el progreso
                 if (queueIndex < sendQueue.length) {
                     btnSend.innerText = `Enviar Siguiente (${queueIndex + 1}/${sendQueue.length})`;
-                    btnSend.className = "flex-1 bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 rounded-xl transition active:scale-95 text-sm";
+                    btnSend.className = "w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-3.5 rounded-xl transition active:scale-95 text-sm";
                 } else {
-                    // Envío de cola completado con éxito
-                    showNotification("¡Todos los datos y el divisor han sido enviados a WhatsApp!");
+                    showNotification("¡Todos los datos han sido enviados en mensajes separados!");
                     sendQueue = [];
                     queueIndex = 0;
                     btnSend.innerText = "Enviar WhatsApp";
-                    btnSend.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition active:scale-95 text-sm";
+                    btnSend.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition active:scale-95 text-sm";
                 }
             } else {
-                // Envío clásico en bloque (Un único mensaje consolidado respetando el nuevo orden)
+                // Envío en un bloque único y unificado
                 const messageLines = [];
-                if (phoneLine) messageLines.push(phoneLine); // 1. Teléfono del cliente
-                messageLines.push(cardLine);                 // 2. Número de tarjeta
-                if (amountLine) messageLines.push(amountLine); // 3. Cantidad a enviar
-                messageLines.push("----------");             // 4. Divisor final de cierre
+                if (phoneLine) messageLines.push(phoneLine);
+                messageLines.push(cardLine);
+                if (amountLine) messageLines.push(amountLine);
+                messageLines.push("----------");
 
                 const formattedMessage = messageLines.join('\n');
 
@@ -460,7 +612,7 @@
                 showNotification("¡tailwind.js descargado con éxito! Guárdalo en la misma carpeta que este index.html.");
             } catch (err) {
                 window.open("https://cdn.tailwindcss.com", "_blank");
-                showNotification("Se abrió el script en otra pestaña. Presiona Ctrl+S (o Cmd+S) para guardarlo como 'tailwind.js' en tu carpeta.", false);
+                showNotification("Se abrió el script en otra pestaña. Presiona Ctrl+S para guardarlo como 'tailwind.js'.", false);
             }
         }
 
@@ -482,8 +634,9 @@
             }
         });
 
-        // Capturar imágenes compartidas desde el Web Share Target
+        // Capturar imágenes compartidas desde el Web Share Target de Android
         window.addEventListener('DOMContentLoaded', async () => {
+            loadHistories();
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('shared') === '1') {
                 try {
@@ -493,24 +646,22 @@
                         const blob = await response.blob();
                         const file = new File([blob], "compartido.png", { type: blob.type });
                         processImageFile(file);
-                        // Limpiar caché para evitar re-análisis al recargar
                         await cache.delete('/shared-image');
                     }
                 } catch (e) {
-                    console.error("Error al leer imagen compartida de la caché:", e);
+                    console.error("Error al leer imagen compartida:", e);
                 }
             }
         });
 
-        // Registrar Service Worker local físico (si existe)
+        // Registrar Service Worker local físico
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')
                 .then(reg => {
                     console.log('Service Worker registrado correctamente', reg);
-                    // Forzar actualización si hay cambios pendientes
                     reg.update();
                 })
-                .catch(err => console.warn('Modo PWA sin conexión deshabilitado hasta que subas el archivo sw.js de soporte.', err));
+                .catch(err => console.warn('Modo PWA sin conexión deshabilitado hasta subir sw.js', err));
         }
 
         // Descarga de archivos auxiliares generados al vuelo para cumplir con los estándares de Android
@@ -588,7 +739,6 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     
-    // Interceptar la petición POST que hace el sistema operativo cuando se comparte un archivo
     if (event.request.method === 'POST' && url.pathname.endsWith('index.html') && url.searchParams.get('shared') === '1') {
         event.respondWith((async () => {
             try {
@@ -601,7 +751,6 @@ self.addEventListener('fetch', (event) => {
             } catch (err) {
                 console.error("Error capturando archivo en Service Worker:", err);
             }
-            // Redirigir usando código HTTP 303 (Obligatorio para Web Share Target en POST)
             return Response.redirect('index.html?shared=1', 303);
         })());
         return;
