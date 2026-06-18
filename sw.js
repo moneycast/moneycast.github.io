@@ -30,7 +30,6 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     
-    // Interceptar la petición POST que hace el sistema operativo cuando se comparte un archivo
     if (event.request.method === 'POST' && url.pathname.endsWith('index.html') && url.searchParams.get('shared') === '1') {
         event.respondWith((async () => {
             try {
@@ -43,7 +42,6 @@ self.addEventListener('fetch', (event) => {
             } catch (err) {
                 console.error("Error capturando archivo en Service Worker:", err);
             }
-            // Redirigir usando código HTTP 303 (Obligatorio para Web Share Target en POST)
             return Response.redirect('index.html?shared=1', 303);
         })());
         return;

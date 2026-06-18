@@ -9,7 +9,7 @@
     <!-- Motor OCR Tesseract.js cargado desde CDN para procesamiento en cliente -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <!-- Enlace al archivo de manifiesto PWA -->
-    <link rel="manifest" href="manifest.json">
+    <link class="pwa-manifest" rel="manifest" href="manifest.json">
 </head>
 <body class="bg-slate-900 min-h-screen text-slate-100 flex flex-col items-center justify-center p-4">
 
@@ -541,7 +541,7 @@
             }
 
             if (chkSeparate.checked) {
-                // Preparar la cola de envío por separado en el orden específico requerido
+                // Preparar la cola de envío por separado en el orden específico requerido (Requirement)
                 if (sendQueue.length === 0) {
                     if (phoneLine) sendQueue.push(phoneLine);    // 1. Teléfono del cliente
                     sendQueue.push(cardLine);                    // 2. Número de tarjeta
@@ -575,12 +575,12 @@
                     btnSend.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition active:scale-95 text-sm";
                 }
             } else {
-                // Envío en un bloque único y unificado
+                // Envío en un bloque único y unificado en el orden estricto
                 const messageLines = [];
-                if (phoneLine) messageLines.push(phoneLine);
-                messageLines.push(cardLine);
-                if (amountLine) messageLines.push(amountLine);
-                messageLines.push("----------");
+                if (phoneLine) messageLines.push(phoneLine);    // 1. Teléfono del cliente
+                messageLines.push(cardLine);                    // 2. Número de tarjeta
+                if (amountLine) messageLines.push(amountLine);    // 3. Cantidad a enviar
+                messageLines.push("----------");                // 4. Divisor final obligatorio
 
                 const formattedMessage = messageLines.join('\n');
 
