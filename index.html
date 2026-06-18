@@ -91,6 +91,18 @@
                 <input type="tel" id="whatsapp-dest" placeholder="Vacío para elegir contacto en WhatsApp" 
                        class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
             </div>
+
+            <!-- Opción de Mensajes Separados -->
+            <div class="flex items-center justify-between bg-slate-900/40 p-3 rounded-xl border border-slate-700/50">
+                <div class="flex flex-col">
+                    <span class="text-xs font-semibold text-slate-200">Mensajes separados</span>
+                    <span class="text-[10px] text-slate-400">Envía cada dato por separado + divisor</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="chk-separate" class="sr-only peer" checked>
+                    <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+            </div>
         </div>
 
         <!-- Botones de Acción -->
@@ -147,11 +159,15 @@
         const statusMessage = document.getElementById('status-message');
         const fileInput = document.getElementById('file-input');
         const btnInstallPwa = document.getElementById('btn-install-pwa');
+        const chkSeparate = document.getElementById('chk-separate');
 
         let isScanning = true;
         let detectedNumber = "";
         let scanInterval;
         let deferredPrompt;
+
+        let sendQueue = [];
+        let queueIndex = 0;
 
         // Mostrar estados/alertas de forma amigable
         function showNotification(text, isError = false) {
@@ -324,6 +340,13 @@
             cardDisplay.innerText = "Alinea la tarjeta en el recuadro";
             cardDisplay.classList.remove('text-emerald-400');
             cardDisplay.classList.add('text-slate-500');
+            
+            // Resetear cola de envío por separado
+            sendQueue = [];
+            queueIndex = 0;
+            btnSend.innerText = "Enviar WhatsApp";
+            btnSend.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition active:scale-95 text-sm";
+            
             btnSend.disabled = true;
             scanStatus.innerText = "Iniciando cámara...";
             fileInput.value = "";
@@ -362,24 +385,62 @@
                 amountLine = `${amountValue} ${currencyValue}`;
             }
 
-            // Unir únicamente los campos que no estén vacíos
-            const messageLines = [cardLine];
-            if (phoneLine) messageLines.push(phoneLine);
-            if (amountLine) messageLines.push(amountLine);
-
-            const formattedMessage = messageLines.join('\n');
-
-            // Obtener número del destinatario de WhatsApp
             const destPhone = destInput.value.replace(/[\s+-]/g, '').trim();
 
-            let whatsappUrl = "";
-            if (destPhone) {
-                whatsappUrl = `https://api.whatsapp.com/send?phone=${destPhone}&text=${encodeURIComponent(formattedMessage)}`;
-            } else {
-                whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(formattedMessage)}`;
-            }
+            if (chkSeparate.checked) {
+                // Si la cola de envío está vacía, la preparamos respetando el orden estricto
+                if (sendQueue.length === 0) {
+                    if (phoneLine) sendQueue.push(phoneLine); // 1. Teléfono del cliente
+                    sendQueue.push(cardLine);                 // 2. Número de tarjeta
+                    if (amountLine) sendQueue.push(amountLine); // 3. Cantidad a enviar
+                    sendQueue.push("----------");             // 4. Divisor final de cierre
+                    queueIndex = 0;
+                }
 
-            window.open(whatsappUrl, '_blank');
+                // Obtener el mensaje actual de la lista
+                const currentMsg = sendQueue[queueIndex];
+                
+                let whatsappUrl = "";
+                if (destPhone) {
+                    whatsappUrl = `https://api.whatsapp.com/send?phone=${destPhone}&text=${encodeURIComponent(currentMsg)}`;
+                } else {
+                    whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(currentMsg)}`;
+                }
+                
+                window.open(whatsappUrl, '_blank');
+                queueIndex++;
+
+                // Actualizar visualmente el botón principal según el progreso de la cola
+                if (queueIndex < sendQueue.length) {
+                    btnSend.innerText = `Enviar Siguiente (${queueIndex + 1}/${sendQueue.length})`;
+                    btnSend.className = "flex-1 bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 rounded-xl transition active:scale-95 text-sm";
+                } else {
+                    // Envío de cola completado con éxito
+                    showNotification("¡Todos los datos y el divisor han sido enviados a WhatsApp!");
+                    sendQueue = [];
+                    queueIndex = 0;
+                    btnSend.innerText = "Enviar WhatsApp";
+                    btnSend.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition active:scale-95 text-sm";
+                }
+            } else {
+                // Envío clásico en bloque (Un único mensaje consolidado respetando el nuevo orden)
+                const messageLines = [];
+                if (phoneLine) messageLines.push(phoneLine); // 1. Teléfono del cliente
+                messageLines.push(cardLine);                 // 2. Número de tarjeta
+                if (amountLine) messageLines.push(amountLine); // 3. Cantidad a enviar
+                messageLines.push("----------");             // 4. Divisor final de cierre
+
+                const formattedMessage = messageLines.join('\n');
+
+                let whatsappUrl = "";
+                if (destPhone) {
+                    whatsappUrl = `https://api.whatsapp.com/send?phone=${destPhone}&text=${encodeURIComponent(formattedMessage)}`;
+                } else {
+                    whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(formattedMessage)}`;
+                }
+
+                window.open(whatsappUrl, '_blank');
+            }
         });
 
         // ----------------- DESCARGA DE RECURSO CSS TAILWIND -----------------
