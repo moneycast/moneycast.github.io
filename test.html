@@ -41,7 +41,6 @@
         </div>
         <input type="tel" id="whatsapp-dest" placeholder="WhatsApp Destino" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
 
-        <!-- Selector de modo -->
         <div class="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-700">
             <span class="text-sm">Envío por separado</span>
             <input type="checkbox" id="mode-toggle" class="w-6 h-6 accent-emerald-500">
@@ -62,11 +61,13 @@
 
     <script>
         let deferredPrompt;
+        let queue = [];
+        let queueIdx = 0;
         const cardInput = document.getElementById('card-input'), clientPhone = document.getElementById('client-phone'), destPhone = document.getElementById('whatsapp-dest'), amount = document.getElementById('amount');
         const modeToggle = document.getElementById('mode-toggle');
+        const btnSend = document.getElementById('btn-send');
 
         window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('install-banner').classList.remove('hidden'); });
-
         document.getElementById('btn-install').onclick = async () => { if(deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; } };
 
         async function initCamera() { try { const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); document.getElementById('video').srcObject = stream; } catch (e) { console.error(e); } }
@@ -83,20 +84,28 @@
             document.getElementById('ocr-loading').classList.add('hidden');
         };
 
-        document.getElementById('btn-clear').onclick = () => document.querySelectorAll('input').forEach(i => i.value = '');
+        document.getElementById('btn-clear').onclick = () => {
+            document.querySelectorAll('input').forEach(i => i.value = '');
+            queue = []; queueIdx = 0; btnSend.innerHTML = `<svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>`;
+        };
 
-        document.getElementById('btn-send').onclick = async () => {
-            const data = [clientPhone.value.trim(), cardInput.value.trim(), amount.value.trim()].filter(Boolean);
+        btnSend.onclick = () => {
             const dest = destPhone.value.replace(/\D/g, '');
-            
             if (modeToggle.checked) {
-                for (const item of data) {
-                    window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(item)}`, '_blank');
-                    await new Promise(r => setTimeout(r, 800)); // Delay para evitar bloqueo
+                if (queue.length === 0) {
+                    queue = [clientPhone.value.trim(), cardInput.value.trim(), amount.value.trim()].filter(Boolean);
+                    queue.push('----------');
                 }
-                window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent('----------')}`, '_blank');
+                if (queueIdx < queue.length) {
+                    window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(queue[queueIdx])}`, '_blank');
+                    queueIdx++;
+                    btnSend.innerHTML = `<span class="text-[10px] font-bold text-white">${queueIdx}/${queue.length}</span>`;
+                    if (queueIdx === queue.length) { queue = []; queueIdx = 0; }
+                } else {
+                    btnSend.innerHTML = `<svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>`;
+                }
             } else {
-                const msg = [...data, "----------"].join('\n');
+                const msg = [clientPhone.value.trim(), cardInput.value.trim(), amount.value.trim(), '----------'].filter(Boolean).join('\n');
                 window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(msg)}`, '_blank');
             }
         };
