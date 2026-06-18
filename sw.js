@@ -1,55 +1,61 @@
-const CACHE_NAME = 'pwa-shell-v1';
-const OFFLINE_URL = './index.html';
-const CACHE_FILES = ['./index.html', './manifest.json', './sw.js'];
+const CACHE_NAME = 'cardscan-cache-v1';
+const ASSETS = [
+    'index.html',
+    'tailwind.js'
+];
 
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(CACHE_FILES))
+self.addEventListener('install', (e) => {
+    e.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.addAll(ASSETS).catch(() => {});
+        })
     );
+    self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((keys) => Promise.all(
-            keys.filter((key) => key !== CACHE_NAME && key !== 'shared-data')
-                .map((key) => caches.delete(key))
-        )).then(() => self.clients.claim())
+self.addEventListener('activate', (e) => {
+    e.waitUntil(
+        caches.keys().then((keys) => {
+            return Promise.all(
+                keys.map((key) => {
+                    if (key !== CACHE_NAME) {
+                        return caches.delete(key);
+                    }
+                })
+            );
+        }).then(() => clients.claim())
     );
 });
 
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
-
-    if (event.request.method === 'POST' && url.pathname.includes('index.html') && url.searchParams.get('shared') === '1') {
+    
+    // Interceptar la petición POST que hace el sistema operativo cuando se comparte un archivo
+    if (event.request.method === 'POST' && url.pathname.endsWith('index.html') && url.searchParams.get('shared') === '1') {
         event.respondWith((async () => {
-            const formData = await event.request.formData();
-            const file = formData.get('media');
-            if (file) {
-                const cache = await caches.open('shared-data');
-                await cache.put('/shared-image', new Response(file));
+            try {
+                const formData = await event.request.formData();
+                const file = formData.get('media');
+                if (file) {
+                    const cache = await caches.open('shared-data');
+                    await cache.put('/shared-image', new Response(file));
+                }
+            } catch (err) {
+                console.error("Error capturando archivo en Service Worker:", err);
             }
-            return Response.redirect('./index.html?shared=1', 303);
+            // Redirigir usando código HTTP 303 (Obligatorio para Web Share Target en POST)
+            return Response.redirect('index.html?shared=1', 303);
         })());
-        return;
-    }
-
-    if (event.request.mode === 'navigate') {
-        event.respondWith(
-            fetch(event.request).catch(() => caches.match(OFFLINE_URL))
-        );
         return;
     }
 
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
-            return cachedResponse || fetch(event.request).then((response) => {
-                if (response && response.status === 200 && response.type === 'basic') {
-                    const responseClone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+            return cachedResponse || fetch(event.request).catch(() => {
+                if (event.request.mode === 'navigate') {
+                    return caches.match('index.html');
                 }
-                return response;
-            }).catch(() => caches.match(event.request));
+            });
         })
     );
 });
