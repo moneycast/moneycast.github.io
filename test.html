@@ -36,10 +36,13 @@
         </div>
 
         <div class="grid grid-cols-2 gap-3">
-            <input type="tel" id="client-phone" placeholder="Tel. Cliente" class="p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
-            <input type="number" id="amount" placeholder="Monto" class="p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
+            <input type="tel" id="client-phone" placeholder="Tel. Cliente" class="p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm storage-input">
+            <div class="flex gap-2">
+                <input type="number" id="amount" placeholder="Monto" class="flex-grow p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
+                <input type="text" id="amount-suffix" placeholder="USD" class="w-16 p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm text-center">
+            </div>
         </div>
-        <input type="tel" id="whatsapp-dest" placeholder="WhatsApp Destino" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
+        <input type="tel" id="whatsapp-dest" placeholder="WhatsApp Destino" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm storage-input">
 
         <div class="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-700">
             <span class="text-sm">Envío por separado</span>
@@ -63,54 +66,90 @@
         let deferredPrompt;
         let queue = [];
         let queueIdx = 0;
-        const cardInput = document.getElementById('card-input'), clientPhone = document.getElementById('client-phone'), destPhone = document.getElementById('whatsapp-dest'), amount = document.getElementById('amount');
-        const modeToggle = document.getElementById('mode-toggle');
-        const btnSend = document.getElementById('btn-send');
+        const inputs = ['card-input', 'client-phone', 'amount', 'amount-suffix', 'whatsapp-dest'];
+        
+        window.addEventListener('load', () => {
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if(localStorage.getItem(id)) el.value = localStorage.getItem(id);
+                el.addEventListener('input', () => localStorage.setItem(id, el.value));
+            });
+            initCamera();
+        });
 
         window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('install-banner').classList.remove('hidden'); });
         document.getElementById('btn-install').onclick = async () => { if(deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; } };
 
         async function initCamera() { try { const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); document.getElementById('video').srcObject = stream; } catch (e) { console.error(e); } }
         
+        async function processImageSource(source) {
+            document.getElementById('ocr-loading').classList.remove('hidden');
+            const img = new Image();
+            img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width; canvas.height = img.height;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+                const match = text.replace(/[\s-]/g, '').match(/\d{13,19}/);
+                if(match) {
+                    document.getElementById('card-input').value = match[0].replace(/.{4}/g, '$& ').trim();
+                    localStorage.setItem('card-input', document.getElementById('card-input').value);
+                }
+                document.getElementById('ocr-loading').classList.add('hidden');
+            };
+            img.src = source;
+        }
+
         document.getElementById('btn-scan').onclick = async () => {
             const video = document.getElementById('video');
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            document.getElementById('ocr-loading').classList.remove('hidden');
-            const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-            const match = text.replace(/[\s-]/g, '').match(/\d{13,19}/);
-            if(match) cardInput.value = match[0].replace(/.{4}/g, '$& ').trim();
-            document.getElementById('ocr-loading').classList.add('hidden');
+            await processImageSource(canvas.toDataURL('image/png'));
         };
 
-        document.getElementById('btn-clear').onclick = () => {
-            document.querySelectorAll('input').forEach(i => i.value = '');
-            queue = []; queueIdx = 0; btnSend.innerHTML = `<svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>`;
+        document.getElementById('file-input').onchange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (event) => processImageSource(event.target.result);
+            reader.readAsDataURL(e.target.files[0]);
         };
 
-        btnSend.onclick = () => {
-            const dest = destPhone.value.replace(/\D/g, '');
+        const clearAll = () => {
+            inputs.forEach(id => { document.getElementById(id).value = ''; localStorage.removeItem(id); });
+            queue = []; queueIdx = 0; document.getElementById('btn-send').innerHTML = `<svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>`;
+        };
+
+        document.getElementById('btn-clear').onclick = clearAll;
+
+        document.getElementById('btn-send').onclick = () => {
+            const card = document.getElementById('card-input').value.trim();
+            const clientPhone = document.getElementById('client-phone').value.trim();
+            const amount = document.getElementById('amount').value.trim() + " " + document.getElementById('amount-suffix').value.trim();
+            const dest = document.getElementById('whatsapp-dest').value.replace(/\D/g, '');
+            const modeToggle = document.getElementById('mode-toggle');
+            const btnSend = document.getElementById('btn-send');
+            
             if (modeToggle.checked) {
                 if (queue.length === 0) {
-                    queue = [clientPhone.value.trim(), cardInput.value.trim(), amount.value.trim()].filter(Boolean);
+                    queue = [clientPhone, card, amount].filter(val => val.trim() !== "");
                     queue.push('----------');
                 }
                 if (queueIdx < queue.length) {
                     window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(queue[queueIdx])}`, '_blank');
                     queueIdx++;
                     btnSend.innerHTML = `<span class="text-[10px] font-bold text-white">${queueIdx}/${queue.length}</span>`;
-                    if (queueIdx === queue.length) { queue = []; queueIdx = 0; }
+                    if (queueIdx === queue.length) { 
+                        clearAll(); 
+                    }
                 } else {
                     btnSend.innerHTML = `<svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>`;
                 }
             } else {
-                const msg = [clientPhone.value.trim(), cardInput.value.trim(), amount.value.trim(), '----------'].filter(Boolean).join('\n');
+                const msg = [clientPhone, card, amount, '----------'].filter(val => val.trim() !== "").join('\n');
                 window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(msg)}`, '_blank');
+                clearAll();
             }
         };
-
-        window.onload = initCamera;
     </script>
 </body>
 </html>
