@@ -6,83 +6,99 @@
     <title>CardScan Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        .icon-btn { @apply flex flex-col items-center justify-center p-2 text-slate-400 hover:text-emerald-400 transition-colors; }
+    </style>
 </head>
 <body class="bg-slate-950 min-h-screen text-slate-100 pb-24">
+
+    <div id="install-banner" class="hidden bg-emerald-600 p-3 text-center text-sm font-bold shadow-lg sticky top-0 z-50">
+        <button id="btn-install">¿Quieres instalar CardScan Pro? (Instalar App)</button>
+    </div>
 
     <div class="max-w-md mx-auto p-4 space-y-4">
         <h1 class="text-xl font-bold text-emerald-400 text-center py-2">CardScan Pro</h1>
         
-        <!-- Visor -->
         <div class="relative w-full h-48 bg-black rounded-xl overflow-hidden border border-slate-700">
             <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+            <label class="absolute top-2 right-2 bg-slate-900/80 p-2 rounded-full cursor-pointer hover:bg-slate-700 transition z-10 border border-slate-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <input type="file" id="file-input" accept="image/*" class="hidden">
+            </label>
             <div id="ocr-loading" class="absolute inset-0 bg-black/80 flex items-center justify-center hidden">
-                <span class="text-emerald-400 font-bold">Procesando...</span>
+                <span class="text-emerald-400 font-bold animate-pulse">Procesando...</span>
             </div>
         </div>
 
-        <!-- Campo Tarjeta (Ahora editable) -->
         <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
             <label class="text-[10px] text-slate-400 uppercase font-bold">Número de Tarjeta</label>
-            <input type="text" id="card-input" placeholder="0000 0000 0000 0000" 
-                   class="w-full bg-transparent text-xl font-mono text-emerald-400 focus:outline-none mt-1">
+            <input type="text" id="card-input" placeholder="0000 0000 0000 0000" class="w-full bg-transparent text-xl font-mono text-emerald-400 focus:outline-none mt-1">
         </div>
 
-        <!-- Inputs Datos -->
         <div class="grid grid-cols-2 gap-3">
             <input type="tel" id="client-phone" placeholder="Tel. Cliente" class="p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
             <input type="number" id="amount" placeholder="Monto" class="p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
         </div>
-        <input type="tel" id="whatsapp-dest" placeholder="WhatsApp Destino (Opcional)" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
+        <input type="tel" id="whatsapp-dest" placeholder="WhatsApp Destino" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm">
+
+        <!-- Selector de modo -->
+        <div class="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-700">
+            <span class="text-sm">Envío por separado</span>
+            <input type="checkbox" id="mode-toggle" class="w-6 h-6 accent-emerald-500">
+        </div>
     </div>
 
-    <!-- Barra Navegación Flotante -->
     <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around items-center p-3 z-50">
-        <button id="btn-scan" class="flex flex-col items-center text-slate-400 hover:text-emerald-400">
-            <span class="text-xs font-bold">📸 Escanear</span>
+        <button id="btn-scan" class="icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4"/></svg>
         </button>
         <button id="btn-send" class="bg-emerald-600 p-4 rounded-full -mt-8 border-4 border-slate-950 shadow-xl">
-            <span class="text-white font-bold">Enviar</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
         </button>
-        <button id="btn-clear" class="flex flex-col items-center text-slate-400 hover:text-rose-400">
-            <span class="text-xs font-bold">🧹 Limpiar</span>
+        <button id="btn-clear" class="icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>
     </nav>
 
     <script>
-        const video = document.getElementById('video'), canvas = document.createElement('canvas');
-        const cardInput = document.getElementById('card-input'), btnScan = document.getElementById('btn-scan');
-        const btnClear = document.getElementById('btn-clear'), btnSend = document.getElementById('btn-send');
+        let deferredPrompt;
+        const cardInput = document.getElementById('card-input'), clientPhone = document.getElementById('client-phone'), destPhone = document.getElementById('whatsapp-dest'), amount = document.getElementById('amount');
+        const modeToggle = document.getElementById('mode-toggle');
 
-        async function initCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                video.srcObject = stream;
-            } catch (e) { console.error(e); }
-        }
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('install-banner').classList.remove('hidden'); });
 
-        btnScan.onclick = async () => {
-            document.getElementById('ocr-loading').classList.remove('hidden');
+        document.getElementById('btn-install').onclick = async () => { if(deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; } };
+
+        async function initCamera() { try { const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); document.getElementById('video').srcObject = stream; } catch (e) { console.error(e); } }
+        
+        document.getElementById('btn-scan').onclick = async () => {
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
+            document.getElementById('ocr-loading').classList.remove('hidden');
             const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
             const match = text.replace(/[\s-]/g, '').match(/\d{13,19}/);
             if(match) cardInput.value = match[0].replace(/.{4}/g, '$& ').trim();
             document.getElementById('ocr-loading').classList.add('hidden');
         };
 
-        btnClear.onclick = () => {
-            document.querySelectorAll('input').forEach(i => i.value = '');
-        };
+        document.getElementById('btn-clear').onclick = () => document.querySelectorAll('input').forEach(i => i.value = '');
 
-        btnSend.onclick = () => {
-            const card = cardInput.value.trim();
-            const phone = document.getElementById('client-phone').value.trim();
-            const amount = document.getElementById('amount').value.trim();
-            const dest = document.getElementById('whatsapp-dest').value.trim();
+        document.getElementById('btn-send').onclick = async () => {
+            const data = [clientPhone.value.trim(), cardInput.value.trim(), amount.value.trim()].filter(Boolean);
+            const dest = destPhone.value.replace(/\D/g, '');
             
-            const msg = [phone, card, amount, "----------"].filter(Boolean).join('\n');
-            const url = `https://api.whatsapp.com/send?phone=${dest.replace(/\D/g, '')}&text=${encodeURIComponent(msg)}`;
-            window.open(url, '_blank');
+            if (modeToggle.checked) {
+                for (const item of data) {
+                    window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(item)}`, '_blank');
+                    await new Promise(r => setTimeout(r, 800)); // Delay para evitar bloqueo
+                }
+                window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent('----------')}`, '_blank');
+            } else {
+                const msg = [...data, "----------"].join('\n');
+                window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(msg)}`, '_blank');
+            }
         };
 
         window.onload = initCamera;
