@@ -1,60 +1,25 @@
-const CACHE = 'pwa-shell-v1';
-const ASSETS = [
-  '/', '/index.html', '/app.js', '/manifest.json',
-  'https://unpkg.com/tesseract.js@4.0.2/dist/worker.min.js',
-  'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
-  'https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz'
-];
-
-self.addEventListener('install', (e)=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
-  self.skipWaiting();
+self.addEventListener('install', (e) => {
+    self.skipWaiting();
 });
-
-self.addEventListener('activate', (e)=>{
-  e.waitUntil(self.clients.claim());
+self.addEventListener('activate', (e) => {
+    e.waitUntil(clients.claim());
 });
-
-self.addEventListener('fetch', (event)=>{
-  const url = new URL(event.request.url);
-
-  if(event.request.method === 'POST' && url.pathname === '/share-target'){
-    event.respondWith((async ()=>{
-      try{
-        const formData = await event.request.formData();
-        const file = formData.get('image');
-        if(file && file.size){
-          const arr = await file.arrayBuffer();
-          let binary = '';
-          const bytes = new Uint8Array(arr);
-          const chunkSize = 0x8000;
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-          }
-          const b64 = btoa(binary);
-          const dataUrl = `data:${file.type};base64,${b64}`;
-          const target = '/?sharedImage=' + encodeURIComponent(dataUrl);
-          await clients.openWindow(target);
-          return Response.redirect(target, 303);
-        }
-      }catch(err){
-        console.error('share-target error', err);
-      }
-      return Response.redirect('/', 303);
-    })());
-    return;
-  }
-
-  // Try cache first, then network; cache fetched assets for offline fallback
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      const fetchPromise = fetch(event.request).then(networkResponse => {
-        if(networkResponse && networkResponse.status === 200 && event.request.method === 'GET'){
-          caches.open(CACHE).then(cache => cache.put(event.request, networkResponse.clone()));
-        }
-        return networkResponse;
-      }).catch(()=> cached);
-      return cached || fetchPromise;
-    })
-  );
+self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+    if (event.request.method === 'POST' && url.pathname.includes('index.html') && url.searchParams.get('shared') === '1') {
+        // Interceptar compartir imagen y guardarla en la caché local para el hilo principal
+        event.respondWith((async () => {
+            const formData = await event.request.formData();
+            const file = formData.get('media');
+            if (file) {
+                const cache = await caches.open('shared-data');
+                await cache.put('/shared-image', new Response(file));
+            }
+            return Response.redirect('index.html?shared=1', 303);
+        })());
+        return;
+    }
+    event.respondWith(
+        fetch(event.request).catch(() => caches.match(event.request))
+    );
 });

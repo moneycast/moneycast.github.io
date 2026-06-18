@@ -1,197 +1,533 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MoneyCast · WhatsApp</title>
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#00d1b2">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='16'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
-  <style>
-    body { min-height: 100vh; background: #eceff4; color: #1f2937; }
-    .app-shell { max-width: 1040px; margin: 0 auto; }
-    .hero { border-bottom: none; }
-    .hero-body { padding: 2rem 1.5rem; }
-    .hero-body .title { font-size: 2rem; margin-bottom: 0.25rem; }
-    .hero-body .subtitle { font-size: 1rem; opacity: 0.88; }
-    .tabs.is-fullwidth ul { border-radius: 1rem; background: #ffffff; box-shadow: 0 12px 26px rgba(15,23,42,.08); }
-    .tabs.is-fullwidth a { border-radius: 1rem; }
-    .app-card { border-radius: 1.5rem; box-shadow: 0 22px 48px rgba(15,23,42,.08); border: none; }
-    .section.content-wrapper { padding-top: 0.75rem; padding-bottom: 7.5rem; }
-    .field .control .input, .field .control .select, textarea { border-radius: 1rem; }
-    .button { border-radius: 1rem; min-height: 3rem; font-size: 1rem; padding: 0.9rem 1rem; }
-    .button.is-primary, .button.is-link, .button.is-warning, .button.is-danger { box-shadow: 0 10px 18px rgba(15,23,42,.08); }
-    .button.is-light { background: #ffffff; border: 1px solid #d1d5db; color: #1f2937; }
-    .button.is-fullwidth { border-radius: 1rem; }
-    .action-row { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .action-row .control { flex: 1 1 220px; }
-    #previewWrap { border-radius: 1rem; overflow: hidden; }
-    #previewWrap .box { margin-bottom: 0; }
-    #preview { max-height: 270px; width: 100%; object-fit: contain; }
-    #ocrStatus { display: inline-block; padding: 0.6rem 0.85rem; border-radius: 0.85rem; background: #f8fafc; color: #334155; margin-top: 0.75rem; }
-    .history-item { border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.1rem; margin-bottom: 0.9rem; background: #ffffff; }
-    .history-item .buttons { flex-wrap: wrap; gap: 0.5rem; }
-    .preview-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
-    .preview-actions .button { flex: 1; }
-    .mobile-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1px solid #e2e8f0; padding: 0.85rem 0.85rem; }
-    .mobile-bottom-bar .buttons { margin: 0; display: flex; gap: 0.6rem; }
-    .mobile-bottom-bar .button { flex: 1 1 0; }
-    .tab-buttons { width: 100%; }
-    .tab-buttons .button { flex: 1; }
-    .help { margin-top: 0.35rem; }
-    .notification.is-light { border-radius: 1rem; box-shadow: 0 14px 32px rgba(15,23,42,.05); }
-    @media screen and (max-width: 768px) {
-      .hero-body { padding: 1.5rem 1rem; }
-      .hero-body .title { font-size: 1.7rem; }
-      .hero-body .subtitle { font-size: 0.95rem; }
-      .action-row { flex-direction: column; }
-      .field.has-addons.is-flex-wrap-wrap { flex-direction: column; }
-      .field.has-addons.is-flex-wrap-wrap .control { width: 100%; }
-      .hero-foot .buttons { flex-direction: column; align-items: stretch; gap: 0.75rem; }
-      .hero-foot .button { width: 100%; }
-      .mobile-bottom-bar { padding: 0.7rem 0.7rem; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escáner de Tarjetas Local</title>
+    <!-- Carga local de Tailwind CSS con fallback automático a CDN si no existe localmente -->
+    <script src="tailwind.js" onerror="this.onerror=null; var script = document.createElement('script'); script.src='https://cdn.tailwindcss.com'; document.head.appendChild(script);"></script>
+    <!-- Tesseract.js para OCR local en el navegador -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- Enlace al manifest (soporta carga directa si se hospeda con el archivo generado) -->
+    <link rel="manifest" href="manifest.json">
 </head>
-<body>
-  <section class="hero is-primary is-bold">
-    <div class="hero-body">
-      <div class="container">
-        <h1 class="title">MoneyCast</h1>
-        <h2 class="subtitle">Envía datos a WhatsApp con OCR y guarda tu historial.</h2>
-      </div>
-    </div>
-    <div class="hero-foot">
-      <div class="container">
-        <div class="buttons tab-buttons is-centered is-mobile">
-          <button id="tabFormBtn" class="button is-light is-active">Formulario</button>
-          <button id="tabHistoryBtn" class="button is-light">Historial</button>
-          <button id="installBtn" class="button is-light is-hidden">Instalar</button>
+<body class="bg-slate-900 min-h-screen text-slate-100 flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl p-6 space-y-5 border border-slate-700">
+        <div class="text-center">
+            <h1 class="text-2xl font-bold text-emerald-400">Escáner de Tarjetas</h1>
+            <p class="text-xs text-slate-400 mt-1">Procesamiento 100% local en tu dispositivo</p>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section content-wrapper">
-    <div class="container">
-      <div class="columns is-variable is-6 is-multiline">
-        <div class="column is-full-mobile is-two-thirds-tablet is-two-thirds-desktop">
-          <div id="tabForm" class="box">
-            <div class="content">
-              <h3 class="title is-4">Formulario de envío</h3>
+        
+        <!-- Visor de la Cámara -->
+        <div class="relative w-full h-56 bg-black rounded-xl overflow-hidden border-2 border-emerald-500">
+            <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+            <!-- Cuadro guía para enfocar la tarjeta -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="w-64 h-40 border-2 border-dashed border-emerald-400 rounded-lg bg-black/20"></div>
             </div>
-            <form id="form" onsubmit="return false;">
-              <div class="field">
-                <label class="label">Número destino</label>
-                <div class="control has-icons-left">
-                  <input id="dest" class="input" type="tel" inputmode="numeric" placeholder="34123456789" />
-                  <span class="icon is-small is-left"><i class="fas fa-phone"></i></span>
-                </div>
-                <p class="help">Incluye código de país o deja vacío para elegir contacto en WhatsApp.</p>
-              </div>
-
-              <div class="field">
-                <label class="label">Número de tarjeta</label>
-                <div class="field has-addons is-flex-wrap-wrap">
-                  <div class="control is-expanded">
-                    <input id="card" class="input" type="text" inputmode="numeric" placeholder="1234 5678 9012 3456" />
-                  </div>
-                  <div class="control">
-                    <button id="cameraBtn" type="button" class="button is-primary is-fullwidth">Cámara</button>
-                  </div>
-                  <div class="control">
-                    <button id="galleryBtn" type="button" class="button is-link is-fullwidth">Galería</button>
-                  </div>
-                </div>
-                <input id="fileCamera" class="is-hidden" type="file" accept="image/*" capture="environment">
-                <input id="fileGallery" class="is-hidden" type="file" accept="image/*">
-                <p class="help">Captura la tarjeta o elige una imagen para extraer automáticamente el número.</p>
-              </div>
-
-              <div id="previewWrap" class="box is-hidden">
-                <figure class="image is-3by1">
-                  <img id="preview" alt="Vista previa" />
-                </figure>
-                <div class="preview-actions">
-                  <span id="ocrStatus" class="is-size-7 has-text-grey"></span>
-                  <button id="retryOcrBtn" type="button" class="button is-light is-fullwidth">Reintentar OCR</button>
-                </div>
-              </div>
-
-              <div class="field">
-                <label class="label">Teléfono del solicitante</label>
-                <div class="control has-icons-left">
-                  <input id="phone" class="input" type="tel" inputmode="numeric" placeholder="34123456789" />
-                  <span class="icon is-small is-left"><i class="fas fa-user"></i></span>
-                </div>
-              </div>
-
-              <div class="columns is-multiline">
-                <div class="column is-two-thirds">
-                  <div class="field">
-                    <label class="label">Cantidad</label>
-                    <div class="control has-icons-left">
-                      <input id="amount" class="input" type="number" min="0" step="0.01" placeholder="100.00" />
-                      <span class="icon is-small is-left"><i class="fas fa-dollar-sign"></i></span>
-                    </div>
-                  </div>
-                </div>
-                <div class="column is-one-third">
-                  <div class="field">
-                    <label class="label">Moneda</label>
-                    <div class="control">
-                      <input id="currency" class="input" type="text" placeholder="USD" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="field is-grouped is-grouped-right is-flex-wrap-wrap mt-5">
-                <p class="control is-expanded">
-                  <button id="previewMessages" type="button" class="button is-warning is-fullwidth">Previsualizar</button>
-                </p>
-                <p class="control is-expanded">
-                  <button id="sendAll" type="button" class="button is-primary is-fullwidth">Enviar WhatsApp</button>
-                </p>
-              </div>
-            </form>
-
-            <div id="messages" class="notification is-light is-hidden">
-              <h4 class="title is-6">Mensaje a enviar</h4>
-              <pre id="msgList" class="is-family-monospace"></pre>
+            <!-- Estado de la detección -->
+            <div id="scan-status" class="absolute bottom-2 left-0 right-0 text-center text-xs text-white bg-slate-950/80 py-1 px-2 font-medium">
+                Iniciando cámara trasera...
             </div>
-          </div>
         </div>
 
-        <div class="column is-full-mobile is-one-third-tablet is-one-third-desktop">
-          <div id="tabHistory" class="box is-hidden">
-            <div class="content">
-              <h3 class="title is-5">Historial</h3>
-            </div>
-            <div class="field">
-              <div class="control">
-                <button id="clearHistory" type="button" class="button is-danger is-fullwidth">Limpiar todo</button>
-              </div>
-            </div>
-            <div id="historyList"></div>
-          </div>
+        <!-- Botón para instalar PWA (Se muestra dinámicamente) -->
+        <button id="btn-install-pwa" class="hidden w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-2 px-4 rounded-xl shadow text-sm transition active:scale-95">
+            📲 Instalar Aplicación (PWA)
+        </button>
+
+        <!-- Controles para subir imagen desde Galería -->
+        <div class="flex flex-col items-center justify-center bg-slate-900/60 p-3 rounded-xl border border-dashed border-slate-700">
+            <label class="text-xs text-slate-400 mb-2 font-medium">¿Prefieres usar una foto de la galería?</label>
+            <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-slate-100 font-semibold px-4 py-2 rounded-lg text-xs transition active:scale-95">
+                📁 Cargar desde Galería
+                <input type="file" id="file-input" accept="image/*" class="hidden">
+            </label>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <div class="mobile-bottom-bar is-hidden-tablet">
-    <div class="buttons is-centered is-fullwidth">
-      <button id="bbFormBtn" class="button is-light is-fullwidth">Formulario</button>
-      <button id="bbHistoryBtn" class="button is-light is-fullwidth">Historial</button>
-      <button id="bbCameraBtn" class="button is-primary is-fullwidth">Cámara</button>
-    </div>
-  </div>
+        <!-- Canvas oculto para procesar los cuadros de video -->
+        <canvas id="canvas" class="hidden"></canvas>
 
-  <script src="https://unpkg.com/ocrad.js@0.0.1/ocrad.js" crossorigin="anonymous"></script>
-  <script src="/app.js"></script>
+        <!-- Tarjeta detectada -->
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-700">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Número de Tarjeta</label>
+            <div id="card-display" class="text-xl font-mono font-bold text-slate-500 mt-1 tracking-widest text-center">
+                Alinea la tarjeta o sube una foto
+            </div>
+        </div>
+
+        <!-- Campos de Datos Solicitados -->
+        <div class="space-y-3">
+            <!-- Teléfono del Cliente -->
+            <div>
+                <label for="client-phone" class="block text-xs font-semibold text-slate-300 mb-1">Teléfono del Cliente (Opcional)</label>
+                <input type="tel" id="client-phone" placeholder="Ej: +53 51234567" 
+                       class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+            </div>
+
+            <!-- Fila de Monto y Moneda -->
+            <div class="flex gap-3">
+                <div class="flex-1">
+                    <label for="amount" class="block text-xs font-semibold text-slate-300 mb-1">Cantidad de Dinero (Opcional)</label>
+                    <input type="number" id="amount" placeholder="Ej: 500" step="any"
+                           class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                </div>
+                <div class="w-28">
+                    <label for="currency" class="block text-xs font-semibold text-slate-300 mb-1">Moneda</label>
+                    <select id="currency" 
+                            class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm cursor-pointer font-semibold">
+                        <option value="CUP" selected>CUP</option>
+                        <option value="SRD">SRD</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Número de Destino de WhatsApp (Opcional) -->
+            <div>
+                <label for="whatsapp-dest" class="block text-xs font-semibold text-slate-300 mb-1">
+                    Enviar a (Número de WhatsApp Opcional)
+                </label>
+                <input type="tel" id="whatsapp-dest" placeholder="Vacío para elegir contacto en WhatsApp" 
+                       class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+            </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="flex gap-3 pt-2">
+            <button id="btn-retry" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-xl transition active:scale-95 text-sm">
+                Re-escanear
+            </button>
+            <button id="btn-send" disabled class="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition active:scale-95 text-sm">
+                Enviar WhatsApp
+            </button>
+        </div>
+
+        <!-- Mensaje de estado de la aplicación -->
+        <div id="status-message" class="hidden p-3 rounded-xl text-xs text-center"></div>
+
+        <!-- Pestaña colapsable para generar archivos PWA obligatorios -->
+        <details class="bg-slate-900/40 border border-slate-700 rounded-xl p-3 text-xs">
+            <summary class="cursor-pointer font-semibold text-emerald-400 select-none">🛠️ Configuración de Instalación (PWA / Offline)</summary>
+            <p class="text-slate-400 mt-2 mb-3">
+                Para que puedas instalar la app en tu teléfono, compartir fotos directamente y trabajar de manera 100% offline y veloz, descarga estos archivos y colócalos en la misma carpeta junto a tu archivo <code class="text-emerald-300">index.html</code>:
+            </p>
+            <div class="flex flex-col gap-2">
+                <button onclick="downloadTailwind()" class="bg-emerald-600/80 hover:bg-emerald-500 text-white font-bold py-1.5 px-3 rounded text-[11px] transition">
+                    📥 Descargar tailwind.js (Para uso Offline/Carga veloz)
+                </button>
+                <button onclick="downloadManifest()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 px-3 rounded text-[11px] transition">
+                    📥 Descargar manifest.json
+                </button>
+                <button onclick="downloadServiceWorker()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 px-3 rounded text-[11px] transition">
+                    📥 Descargar sw.js
+                </button>
+            </div>
+        </details>
+
+        <!-- Nota de Privacidad -->
+        <div class="bg-emerald-950/40 p-3 rounded-xl border border-emerald-900/50 text-center">
+            <p class="text-[11px] text-emerald-400">
+                🔒 Seguridad: Las imágenes se procesan localmente en tu navegador. Ningún dato viaja a internet.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const cardDisplay = document.getElementById('card-display');
+        const scanStatus = document.getElementById('scan-status');
+        const clientPhoneInput = document.getElementById('client-phone');
+        const amountInput = document.getElementById('amount');
+        const currencySelect = document.getElementById('currency');
+        const destInput = document.getElementById('whatsapp-dest');
+        const btnRetry = document.getElementById('btn-retry');
+        const btnSend = document.getElementById('btn-send');
+        const statusMessage = document.getElementById('status-message');
+        const fileInput = document.getElementById('file-input');
+        const btnInstallPwa = document.getElementById('btn-install-pwa');
+
+        let isScanning = true;
+        let detectedNumber = "";
+        let scanInterval;
+        let deferredPrompt;
+
+        // Mostrar estados/alertas de forma amigable
+        function showNotification(text, isError = false) {
+            statusMessage.innerText = text;
+            statusMessage.className = `p-3 rounded-xl text-xs text-center block ${isError ? 'bg-red-950/40 border border-red-900/50 text-red-400' : 'bg-emerald-950/40 border border-emerald-900/50 text-emerald-400'}`;
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 6000);
+        }
+
+        // Iniciar la cámara trasera para escaneo continuo
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                video.srcObject = stream;
+                scanStatus.innerText = "Buscando tarjeta... Mantén la cámara fija";
+                scanInterval = setInterval(analyzeFrame, 2000);
+            } catch (err) {
+                console.error("Error al acceder a la cámara:", err);
+                scanStatus.innerText = "Cámara no activa (Modo Galería / Compartido)";
+            }
+        }
+
+        // Capturar fotograma y procesarlo con OCR local
+        async function analyzeFrame() {
+            if (!isScanning) return;
+
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            if (canvas.width === 0 || canvas.height === 0) return;
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            scanStatus.innerText = "Analizando fotograma...";
+
+            try {
+                const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
+                    tessedit_char_whitelist: '0123456789 -'
+                });
+
+                processOCRText(text);
+            } catch (err) {
+                console.error("Error en el procesado de imagen:", err);
+            }
+        }
+
+        // Analizar y validar el texto obtenido por OCR
+        function processOCRText(text) {
+            const cleanDigits = text.replace(/[\s-]/g, '');
+            const cardMatch = cleanDigits.match(/\d{13,19}/);
+
+            if (cardMatch) {
+                const numberCandidate = cardMatch[0];
+                if (luhnCheck(numberCandidate)) {
+                    detectedNumber = numberCandidate;
+                    isScanning = false;
+                    clearInterval(scanInterval);
+                    
+                    // Detener cámara para ahorrar batería
+                    if (video.srcObject) {
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    // Actualizar interfaz
+                    cardDisplay.innerText = formatCardNumber(detectedNumber);
+                    cardDisplay.classList.remove('text-slate-500');
+                    cardDisplay.classList.add('text-emerald-400');
+                    scanStatus.innerText = "¡Tarjeta detectada con éxito!";
+                    validateForm();
+                }
+            } else {
+                if (isScanning) {
+                    scanStatus.innerText = "Buscando tarjeta... Encuédrala en la guía";
+                }
+            }
+        }
+
+        // Lógica para procesar un archivo de imagen (Galería o Compartido)
+        function processImageFile(file) {
+            if (!file) return;
+            scanStatus.innerText = "Cargando imagen...";
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = async function() {
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    // Detener el escaneo en vivo activo
+                    isScanning = false;
+                    clearInterval(scanInterval);
+                    if (video.srcObject) {
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                    }
+
+                    scanStatus.innerText = "Analizando imagen cargada...";
+                    try {
+                        const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
+                            tessedit_char_whitelist: '0123456789 -'
+                        });
+                        
+                        const cleanDigits = text.replace(/[\s-]/g, '');
+                        const cardMatch = cleanDigits.match(/\d{13,19}/);
+
+                        if (cardMatch && luhnCheck(cardMatch[0])) {
+                            detectedNumber = cardMatch[0];
+                            cardDisplay.innerText = formatCardNumber(detectedNumber);
+                            cardDisplay.classList.remove('text-slate-500');
+                            cardDisplay.classList.add('text-emerald-400');
+                            scanStatus.innerText = "¡Tarjeta procesada con éxito!";
+                            validateForm();
+                        } else {
+                            scanStatus.innerText = "No se detectó un número de tarjeta válido.";
+                            showNotification("No pudimos reconocer una tarjeta válida en la foto. Intenta con otra imagen más nítida.", true);
+                        }
+                    } catch (err) {
+                        console.error("Error al analizar archivo:", err);
+                        scanStatus.innerText = "Error al analizar el archivo.";
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Algoritmo de Luhn para comprobación matemática de tarjetas
+        function luhnCheck(val) {
+            let sum = 0;
+            let shouldDouble = false;
+            for (let i = val.length - 1; i >= 0; i--) {
+                let digit = parseInt(val.charAt(i));
+                if (shouldDouble) {
+                    if ((digit *= 2) > 9) digit -= 9;
+                }
+                sum += digit;
+                shouldDouble = !shouldDouble;
+            }
+            return (sum % 10) == 0;
+        }
+
+        // Formato visual a bloques de 4 dígitos
+        function formatCardNumber(num) {
+            return num.match(/.{1,4}/g).join(' ');
+        }
+
+        // Validación dinámica de formulario
+        function validateForm() {
+            if (detectedNumber) {
+                btnSend.disabled = false;
+            } else {
+                btnSend.disabled = true;
+            }
+        }
+
+        // Reiniciar el lector
+        btnRetry.addEventListener('click', async () => {
+            isScanning = true;
+            detectedNumber = "";
+            cardDisplay.innerText = "Alinea la tarjeta en el recuadro";
+            cardDisplay.classList.remove('text-emerald-400');
+            cardDisplay.classList.add('text-slate-500');
+            btnSend.disabled = true;
+            scanStatus.innerText = "Iniciando cámara...";
+            fileInput.value = "";
+            clearInterval(scanInterval);
+            await initCamera();
+        });
+
+        // Escucha de subida de archivo desde galería
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            processImageFile(file);
+        });
+
+        // Enviar datos dinámicos a WhatsApp
+        btnSend.addEventListener('click', () => {
+            if (!detectedNumber) return;
+
+            const cardLine = formatCardNumber(detectedNumber);
+            
+            // Línea del Teléfono (Si no se escribe, no se incluye en el mensaje final)
+            let phoneLine = "";
+            let clientPhone = clientPhoneInput.value.trim();
+            if (clientPhone) {
+                clientPhone = clientPhone.replace(/[\s-]/g, '');
+                if (!clientPhone.startsWith('+')) {
+                    clientPhone = '+' + clientPhone;
+                }
+                phoneLine = clientPhone;
+            }
+
+            // Línea de Dinero (Si no se escribe, no se incluye en el mensaje final)
+            let amountLine = "";
+            const amountValue = amountInput.value.trim();
+            if (amountValue && amountValue !== "0") {
+                const currencyValue = currencySelect.value;
+                amountLine = `${amountValue} ${currencyValue}`;
+            }
+
+            // Unir únicamente los campos que no estén vacíos
+            const messageLines = [cardLine];
+            if (phoneLine) messageLines.push(phoneLine);
+            if (amountLine) messageLines.push(amountLine);
+
+            const formattedMessage = messageLines.join('\n');
+
+            // Obtener número del destinatario de WhatsApp
+            const destPhone = destInput.value.replace(/[\s+-]/g, '').trim();
+
+            let whatsappUrl = "";
+            if (destPhone) {
+                whatsappUrl = `https://api.whatsapp.com/send?phone=${destPhone}&text=${encodeURIComponent(formattedMessage)}`;
+            } else {
+                whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(formattedMessage)}`;
+            }
+
+            window.open(whatsappUrl, '_blank');
+        });
+
+        // ----------------- DESCARGA DE RECURSO CSS TAILWIND -----------------
+        async function downloadTailwind() {
+            try {
+                const response = await fetch("https://cdn.tailwindcss.com");
+                if (!response.ok) throw new Error("Error de red");
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "tailwind.js";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                showNotification("¡tailwind.js descargado con éxito! Guárdalo en la misma carpeta que este index.html.");
+            } catch (err) {
+                // En caso de CORS o falta de conexión, redirige a la pestaña de Tailwind para descarga manual
+                window.open("https://cdn.tailwindcss.com", "_blank");
+                showNotification("Se abrió el script en otra pestaña. Presiona Ctrl+S (o Cmd+S) para guardarlo como 'tailwind.js' en tu carpeta.", false);
+            }
+        }
+
+        // ----------------- SOPORTE INSTALACIÓN PWA -----------------
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            btnInstallPwa.classList.remove('hidden');
+        });
+
+        btnInstallPwa.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    btnInstallPwa.classList.add('hidden');
+                }
+                deferredPrompt = null;
+            }
+        });
+
+        // Capturar imágenes compartidas desde el Web Share Target
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('shared') === '1') {
+                try {
+                    const cache = await caches.open('shared-data');
+                    const response = await cache.match('/shared-image');
+                    if (response) {
+                        const blob = await response.blob();
+                        const file = new File([blob], "compartido.png", { type: blob.type });
+                        processImageFile(file);
+                        // Limpiar caché para evitar re-análisis al recargar
+                        await cache.delete('/shared-image');
+                    }
+                } catch (e) {
+                    console.error("Error al leer imagen compartida de la caché:", e);
+                }
+            }
+        });
+
+        // Registrar Service Worker local físico (si existe)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker registrado correctamente', reg))
+                .catch(err => console.warn('Modo PWA sin conexión deshabilitado hasta que subas el archivo sw.js de soporte.', err));
+        }
+
+        // Descarga de archivos auxiliares generados al vuelo para cumplir con los estándares del navegador
+        function downloadManifest() {
+            const manifestContent = {
+                "name": "Escáner de Tarjetas Local",
+                "short_name": "CardScan",
+                "start_url": "index.html",
+                "display": "standalone",
+                "background_color": "#0f172a",
+                "theme_color": "#10b981",
+                "icons": [
+                    {
+                        "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2310b981'/><text x='50' y='60' font-size='40' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>💳</text></svg>",
+                        "sizes": "192x192",
+                        "type": "image/svg+xml"
+                    },
+                    {
+                        "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2310b981'/><text x='50' y='60' font-size='40' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>💳</text></svg>",
+                        "sizes": "512x512",
+                        "type": "image/svg+xml"
+                    }
+                ],
+                "share_target": {
+                    "action": "index.html?shared=1",
+                    "method": "POST",
+                    "enctype": "multipart/form-data",
+                    "params": {
+                        "files": [
+                            {
+                                "name": "media",
+                                "accept": ["image/*"]
+                            }
+                        ]
+                    }
+                }
+            };
+            triggerDownload("manifest.json", JSON.stringify(manifestContent, null, 2));
+        }
+
+        function downloadServiceWorker() {
+            const swContent = `
+self.addEventListener('install', (e) => {
+    self.skipWaiting();
+});
+self.addEventListener('activate', (e) => {
+    e.waitUntil(clients.claim());
+});
+self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+    if (event.request.method === 'POST' && url.pathname.includes('index.html') && url.searchParams.get('shared') === '1') {
+        // Interceptar compartir imagen y guardarla en la caché local para el hilo principal
+        event.respondWith((async () => {
+            const formData = await event.request.formData();
+            const file = formData.get('media');
+            if (file) {
+                const cache = await caches.open('shared-data');
+                await cache.put('/shared-image', new Response(file));
+            }
+            return Response.redirect('index.html?shared=1', 303);
+        })());
+        return;
+    }
+    event.respondWith(
+        fetch(event.request).catch(() => caches.match(event.request))
+    );
+});`;
+            triggerDownload("sw.js", swContent.trim());
+        }
+
+        function triggerDownload(filename, text) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        window.addEventListener('load', initCamera);
+    </script>
 </body>
 </html>

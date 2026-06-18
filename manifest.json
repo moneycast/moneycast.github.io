@@ -1,23 +1,35 @@
 {
-  "name": "Mini PWA WhatsApp",
-  "short_name": "PWA-Whats",
-  "start_url": "/",
-  "scope": "/",
+  "name": "Escáner de Tarjetas Local",
+  "short_name": "CardScan",
+  "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0ea5a4",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
   "icons": [
-    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%230ea5a4'/%3E%3Ctext x='96' y='108' font-size='96' fill='white' text-anchor='middle' dominant-baseline='middle'%3EM%3C/text%3E%3C/svg%3E", "sizes": "192x192", "type": "image/svg+xml" },
-    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='100%25' height='100%25' fill='%230ea5a4'/%3E%3Ctext x='50%25' y='55%25' font-size='220' fill='white' text-anchor='middle' dominant-baseline='middle'%3EM%3C/text%3E%3C/svg%3E", "sizes": "512x512", "type": "image/svg+xml" }
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2310b981'/><text x='50' y='60' font-size='40' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>💳</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2310b981'/><text x='50' y='60' font-size='40' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>💳</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
   ],
   "share_target": {
-    "action": "/share-target",
+    "action": "index.html?shared=1",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
-      "files": [ { "name": "image", "accept": [ "image/*" ] } ],
-      "title": "title",
-      "text": "text"
+      "files": [
+        {
+          "name": "media",
+          "accept": [
+            "image/*"
+          ]
+        }
+      ]
     }
   }
 }
