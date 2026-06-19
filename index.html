@@ -588,9 +588,9 @@
           // Si es pedido a domicilio, encabezará siempre el envío de primero
           if (isDelivery) queue.push("📦 PEDIDO A DOMICILIO");
           
-          if (clientPhone) queue.push(`📞 Teléfono: ${clientPhone}`);
-          if (card) queue.push(`💳 Tarjeta: ${card}`);
-          if (amount) queue.push(`💰 Monto: ${amount}`);
+          if (clientPhone) queue.push(`${clientPhone}`);
+          if (card) queue.push(`${card}`);
+          if (amount) queue.push(`${amount}`);
           
           if (queue.length === 0) {
             showToast("No hay información que despachar.");
