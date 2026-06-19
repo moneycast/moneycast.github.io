@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CardScan Pro - Cuba Premium</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tesseract OCR para lectura local de texto -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- Lucide Icons para la interfaz gráfica -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .font-mono-card {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* Efecto de máscara translúcida y recuadro de tarjeta */
+    .camera-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65); /* Opacidad exterior */
+      pointer-events: none;
+    }
+    
+    .viewfinder-cutout {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 85%;
+      height: 52%;
+      aspect-ratio: 1.586/1; /* Proporción estándar de tarjeta de crédito */
+      border: 2.5px dashed #10b981; /* Borde verde esmeralda dinámico */
+      border-radius: 14px;
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.75), 0 0 15px rgba(16, 185, 129, 0.4);
+      background: transparent;
+    }
+
+    /* Animación del escáner láser */
+    @keyframes laser-sweep {
+      0% { top: 10%; opacity: 0.8; }
+      50% { top: 90%; opacity: 0.8; }
+      100% { top: 10%; opacity: 0.8; }
+    }
+    .laser-line {
+      position: absolute;
+      left: 5%;
+      right: 5%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #10b981, transparent);
+      box-shadow: 0 0 10px #10b981;
+      animation: laser-sweep 3s ease-in-out infinite;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-32 selection:bg-emerald-500/30 selection:text-emerald-300">
+
+  <!-- Banner de Instalación PWA -->
+  <div id="install-banner" class="hidden bg-gradient-to-r from-emerald-600 to-teal-600 p-3 text-center text-xs font-bold shadow-lg sticky top-0 z-50">
+    <button id="btn-install" class="inline-flex items-center gap-2 hover:scale-105 transition-transform">
+      <i data-lucide="download" class="w-4 h-4"></i>
+      ¿Instalar CardScan Pro Cuba? Presiona aquí
+    </button>
+  </div>
+
+  <div class="max-w-md mx-auto p-4 space-y-4">
+    
+    <!-- Encabezado -->
+    <header class="flex items-center justify-between py-1">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/5">
+          <i data-lucide="scan" class="w-5 h-5 text-emerald-400"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-extrabold bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">CardScan Pro</h1>
+          <p class="text-[9px] text-slate-400 font-bold tracking-wider uppercase">Cuba Edition Premium</p>
+        </div>
+      </div>
+      <button id="btn-info" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 transition" onclick="toggleInfoModal()">
+        <i data-lucide="info" class="w-4.5 h-4.5"></i>
+      </button>
+    </header>
+
+    <!-- Caja de Cámara / Captura con máscara optimizada de tarjeta -->
+    <div class="relative w-full h-60 bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl">
+      <!-- Video Element -->
+      <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+      
+      <!-- Máscara exterior y Corte central (Viewfinder) -->
+      <div class="camera-overlay">
+        <div class="viewfinder-cutout">
+          <!-- Línea láser de escaneo confinada al recuadro -->
+          <div class="laser-line"></div>
+        </div>
+      </div>
+
+      <!-- Controles sobre la cámara -->
+      <div class="absolute top-3 left-3 right-3 flex justify-between items-center z-10">
+        <!-- Alternar cámara -->
+        <button id="btn-switch-camera" class="bg-slate-950/80 hover:bg-slate-900 border border-slate-700/60 p-2.5 rounded-xl text-emerald-400 transition shadow-lg backdrop-blur-sm">
+          <i data-lucide="switch-camera" class="w-4.5 h-4.5"></i>
+        </button>
+
+        <!-- Linterna / Flash -->
+        <button id="btn-torch" class="hidden bg-slate-950/80 hover:bg-slate-900 border border-slate-700/60 p-2.5 rounded-xl text-emerald-400 transition shadow-lg backdrop-blur-sm">
+          <i data-lucide="zap" class="w-4.5 h-4.5"></i>
+        </button>
+
+        <!-- Subir foto desde galería -->
+        <label class="bg-slate-950/80 hover:bg-slate-900 border border-slate-700/60 p-2 rounded-xl text-emerald-400 cursor-pointer transition shadow-lg backdrop-blur-sm flex items-center gap-1.5">
+          <i data-lucide="image" class="w-4.5 h-4.5"></i>
+          <span class="text-xs font-bold pr-1">Subir</span>
+          <input type="file" id="file-input" accept="image/*" class="hidden">
+        </label>
+      </div>
+
+      <!-- Pantalla de carga / Procesamiento OCR -->
+      <div id="ocr-loading" class="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center hidden z-20 transition-all duration-200">
+        <div class="relative flex items-center justify-center mb-3">
+          <div class="animate-spin rounded-full h-12 w-12 border-2 border-emerald-500/20 border-t-emerald-400"></div>
+          <i data-lucide="cpu" class="w-5 h-5 text-emerald-400 absolute"></i>
+        </div>
+        <span class="text-emerald-400 text-xs font-extrabold tracking-wider animate-pulse uppercase">Leyendo Tarjeta...</span>
+        <span class="text-slate-500 text-[9px] mt-1">Procesando localmente con Tesseract OCR</span>
+      </div>
+    </div>
+
+    <!-- Alertas personalizadas flotantes -->
+    <div id="toast" class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 border border-emerald-500/30 text-emerald-400 px-5 py-3 rounded-full text-xs font-bold shadow-2xl z-50 flex items-center gap-2 transition-all duration-300 scale-95 opacity-0">
+      <i data-lucide="check-circle" class="w-4.5 h-4.5"></i>
+      <span id="toast-text">Éxito</span>
+    </div>
+
+    <!-- Formulario / Datos del Pedido -->
+    <div class="space-y-3">
+
+      <!-- Interruptor: Pedido a Domicilio -->
+      <div class="flex items-center justify-between p-3.5 bg-gradient-to-r from-emerald-950/30 to-slate-900 rounded-2xl border border-emerald-900/40 transition hover:bg-emerald-950/40">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shadow-inner">
+            <i data-lucide="truck" class="w-5 h-5 text-emerald-400"></i>
+          </div>
+          <div>
+            <span class="text-xs font-extrabold text-slate-200 block">Pedido a Domicilio</span>
+            <span class="text-[9px] text-emerald-400 block font-semibold uppercase tracking-wider">Prioridad número 1</span>
+          </div>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="delivery-toggle" class="sr-only peer">
+          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white"></div>
+        </label>
+      </div>
+      
+      <!-- Entrada del Número de Tarjeta con detección de REDSA -->
+      <div class="bg-gradient-to-br from-slate-900 to-slate-950 p-4 rounded-2xl border border-slate-800 shadow-md">
+        <div class="flex justify-between items-center mb-1.5">
+          <label class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Número de Tarjeta</label>
+          <div class="flex items-center gap-2">
+            <!-- Icono de Tarjeta Detectada -->
+            <span id="card-brand" class="text-[10px] font-extrabold text-slate-400 flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+              <i data-lucide="credit-card" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span>Detectando...</span>
+            </span>
+            <button onclick="copyToClipboard('card-input')" class="text-slate-500 hover:text-emerald-400 transition p-1">
+              <i data-lucide="copy" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+        <input type="text" id="card-input" placeholder="0000 0000 0000 0000" class="w-full bg-transparent text-lg font-mono-card text-emerald-400 focus:outline-none placeholder:text-slate-700 tracking-widest mt-1">
+      </div>
+
+      <!-- Grid de Teléfono del Cliente y Monto -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-slate-900/50 rounded-2xl p-3 border border-slate-800 flex flex-col">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Tel. Cliente</span>
+            <button onclick="copyToClipboard('client-phone')" class="text-slate-500 hover:text-emerald-400 transition">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+          <input type="tel" id="client-phone" placeholder="Ej. 5977479759" class="bg-transparent text-sm text-slate-100 focus:outline-none placeholder:text-slate-700 font-medium storage-input mt-1 w-full">
+        </div>
+
+        <div class="bg-slate-900/50 rounded-2xl p-3 border border-slate-800 flex flex-col">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Monto</span>
+            <button onclick="copyToClipboard('amount')" class="text-slate-500 hover:text-emerald-400 transition">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+          <div class="flex items-center gap-1 mt-1">
+            <input type="number" id="amount" placeholder="0.00" class="bg-transparent text-sm text-slate-100 focus:outline-none placeholder:text-slate-700 font-medium w-full">
+            <input type="text" id="amount-suffix" placeholder="CUP" class="w-12 bg-slate-950 text-center text-[10px] font-bold text-emerald-400 border border-slate-800 rounded px-1 py-1 focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- WhatsApp de Destino -->
+      <div class="bg-slate-900/50 rounded-2xl p-3.5 border border-slate-800">
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">WhatsApp Receptor</span>
+          <button onclick="copyToClipboard('whatsapp-dest')" class="text-slate-500 hover:text-emerald-400 transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        <div class="flex items-center gap-2 mt-1">
+          <i data-lucide="phone" class="w-4 h-4 text-emerald-500"></i>
+          <input type="tel" id="whatsapp-dest" placeholder="Número receptor" class="bg-transparent text-sm text-slate-100 focus:outline-none placeholder:text-slate-700 font-medium w-full storage-input">
+        </div>
+      </div>
+
+      <!-- Configuración de envío por separado -->
+      <div class="flex items-center justify-between p-3.5 bg-slate-900/30 rounded-2xl border border-slate-800/60 transition hover:bg-slate-900/50">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <i data-lucide="layers" class="w-4.5 h-4.5 text-emerald-400"></i>
+          </div>
+          <div>
+            <span class="text-xs font-extrabold text-slate-200 block">Envío segmentado</span>
+            <span class="text-[9px] text-slate-400 block">Abre WhatsApp una vez por cada dato</span>
+          </div>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="mode-toggle" class="sr-only peer">
+          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white"></div>
+        </label>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal Informativo -->
+  <div id="info-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden transition-opacity duration-300">
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-extrabold text-emerald-400 flex items-center gap-2">
+          <i data-lucide="help-circle" class="w-5 h-5"></i>
+          CardScan Pro Cuba
+        </h3>
+        <button onclick="toggleInfoModal()" class="text-slate-400 hover:text-rose-400 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="space-y-2.5 text-xs text-slate-300 leading-relaxed">
+        <p><strong>Ubicación del Escáner:</strong> Alinea la tarjeta horizontalmente dentro del recuadro punteado verde de la cámara.</p>
+        <p><strong>Pedido a Domicilio:</strong> Si está activo, el aviso de envío a domicilio será siempre el primer mensaje entregado.</p>
+        <p><strong>Redes REDSA:</strong> Identifica de forma autónoma tarjetas del Banco Metropolitano, BANDEC y BPA con prefijo <code class="bg-slate-950 px-1 py-0.5 rounded text-emerald-400">92xx</code>.</p>
+      </div>
+      <div class="pt-2">
+        <button onclick="toggleInfoModal()" class="w-full py-2.5 bg-slate-800 text-slate-100 text-xs font-bold rounded-xl hover:bg-slate-700 transition">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menú de Navegación Fijo Inferior -->
+  <div class="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
+    <nav class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl p-3 flex justify-around items-center shadow-2xl relative">
+      
+      <!-- Botón Captura Rápida (Scan) -->
+      <button id="btn-scan" class="flex flex-col items-center justify-center p-2.5 rounded-xl text-slate-400 hover:text-emerald-400 hover:bg-slate-800/50 transition duration-200">
+        <i data-lucide="camera" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold mt-1 tracking-wider uppercase">Captura</span>
+      </button>
+
+      <!-- Botón Central de Envío Principal (Grande) -->
+      <button id="btn-send" class="relative bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 p-4 rounded-full -mt-9 border-4 border-slate-950 shadow-[0_4px_20px_rgba(16,185,129,0.35)] transition-transform active:scale-95 group">
+        <div class="relative z-10">
+          <span id="btn-send-icon">
+            <i data-lucide="send" class="w-6 h-6 text-slate-950 stroke-[2.5]"></i>
+          </span>
+          <span id="btn-send-count" class="hidden text-xs font-extrabold text-slate-950 font-mono-card"></span>
+        </div>
+        <div class="absolute inset-0 rounded-full bg-emerald-400/20 animate-ping opacity-40 group-hover:animate-none"></div>
+      </button>
+
+      <!-- Botón Limpiar Campos (Clear) -->
+      <button id="btn-clear" class="flex flex-col items-center justify-center p-2.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800/50 transition duration-200">
+        <i data-lucide="trash-2" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold mt-1 tracking-wider uppercase">Limpiar</span>
+      </button>
+
+    </nav>
+  </div>
+
+  <script>
+    let deferredPrompt;
+    let queue = [];
+    let queueIdx = 0;
+    let currentStream = null;
+    let currentFacingMode = "environment"; 
+    const inputs = ['card-input', 'client-phone', 'amount', 'amount-suffix', 'whatsapp-dest', 'delivery-toggle'];
+
+    // Inicialización
+    window.addEventListener('load', () => {
+      lucide.createIcons();
+
+      // Cargar persistencia y escuchar cambios
+      inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if(!el) return;
+
+        if (el.type === 'checkbox') {
+          if(localStorage.getItem(id)) {
+            el.checked = localStorage.getItem(id) === 'true';
+          }
+          el.addEventListener('change', () => localStorage.setItem(id, el.checked));
+        } else {
+          if(localStorage.getItem(id)) {
+            el.value = localStorage.getItem(id);
+            if (id === 'card-input') detectCardBrand(el.value);
+          }
+          el.addEventListener('input', () => {
+            localStorage.setItem(id, el.value);
+            if (id === 'card-input') detectCardBrand(el.value);
+          });
+        }
+      });
+
+      // Configuración por defecto de WhatsApp si tu número está preestablecido
+      const defaultDest = document.getElementById('whatsapp-dest');
+      if (!defaultDest.value) {
+        defaultDest.value = "5977479759"; // Tu número guardado
+        localStorage.setItem('whatsapp-dest', defaultDest.value);
+      }
+
+      initCamera();
+    });
+
+    // PWA Install Event
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install-banner').classList.remove('hidden');
+    });
+
+    document.getElementById('btn-install').onclick = async () => {
+      if(deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if(outcome === 'accepted') {
+          document.getElementById('install-banner').classList.add('hidden');
+        }
+        deferredPrompt = null;
+      }
+    };
+
+    // Acceso y configuración de la cámara
+    async function initCamera() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+      try {
+        const constraints = {
+          video: { 
+            facingMode: currentFacingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        currentStream = stream;
+        const videoElement = document.getElementById('video');
+        videoElement.srcObject = stream;
+
+        // Comprobar disponibilidad de linterna
+        const track = stream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        const btnTorch = document.getElementById('btn-torch');
+        if (capabilities.torch) {
+          btnTorch.classList.remove('hidden');
+        } else {
+          btnTorch.classList.add('hidden');
+        }
+      } catch (e) {
+        console.error("No se accedió a la cámara trasera/frontal:", e);
+        showToast("Cámara no lista. Utiliza el botón de Subir Imagen.");
+      }
+    }
+
+    // Cambiar entre lente frontal y trasero
+    document.getElementById('btn-switch-camera').onclick = async () => {
+      currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+      await initCamera();
+      showToast(`Cámara cambiada a ${currentFacingMode === "user" ? "Frontal" : "Trasera"}`);
+    };
+
+    // Control de Linterna
+    let torchActive = false;
+    document.getElementById('btn-torch').onclick = async () => {
+      if (!currentStream) return;
+      const track = currentStream.getVideoTracks()[0];
+      try {
+        torchActive = !torchActive;
+        await track.applyConstraints({
+          advanced: [{ torch: torchActive }]
+        });
+        if(torchActive) {
+          document.getElementById('btn-torch').classList.add('text-yellow-400');
+          showToast("Flash Encendido");
+        } else {
+          document.getElementById('btn-torch').classList.remove('text-yellow-400');
+          showToast("Flash Apagado");
+        }
+      } catch (err) {
+        console.error("Fallo de linterna:", err);
+      }
+    };
+
+    // Identificación de marcas bancarias incluyendo cubanas
+    function detectCardBrand(number) {
+      const cleanNum = number.replace(/\D/g, '');
+      const brandIndicator = document.getElementById('card-brand');
+      
+      let brandName = "Desconocida";
+      let brandIcon = "credit-card";
+      let brandColor = "text-slate-500";
+
+      if (cleanNum.startsWith('4')) {
+        brandName = "Visa";
+        brandColor = "text-blue-400";
+      } else if (/^5[1-5]/.test(cleanNum) || /^2[2-7]/.test(cleanNum)) {
+        brandName = "Mastercard";
+        brandColor = "text-amber-500";
+      } else if (/^3[47]/.test(cleanNum)) {
+        brandName = "Amex";
+        brandColor = "text-cyan-400";
+      } else if (/^6(?:011|5)/.test(cleanNum)) {
+        brandName = "Discover";
+        brandColor = "text-orange-400";
+      } else if (cleanNum.startsWith('92')) {
+        brandColor = "text-emerald-400";
+        if (cleanNum.startsWith('9200') || cleanNum.startsWith('9204')) {
+          brandName = "Metropolitano";
+        } else if (cleanNum.startsWith('9202') || cleanNum.startsWith('9206') || cleanNum.startsWith('9212')) {
+          brandName = "BANDEC";
+        } else if (cleanNum.startsWith('9201') || cleanNum.startsWith('9205')) {
+          brandName = "BPA";
+        } else {
+          brandName = "Tarjeta RED";
+        }
+      }
+
+      brandIndicator.innerHTML = `
+        <i data-lucide="${brandIcon}" class="w-3.5 h-3.5 ${brandColor}"></i>
+        <span class="${brandColor} font-extrabold">${brandName}</span>
+      `;
+      lucide.createIcons();
+    }
+
+    // OCR desde el Viewfinder
+    async function processImageSource(source) {
+      document.getElementById('ocr-loading').classList.remove('hidden');
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        
+        // Enfocar el recorte en el área del recuadro (viewport intermedio)
+        const scale = 1.0;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        try {
+          const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+          const match = text.replace(/[\s-]/g, '').match(/\d{13,19}/);
+          
+          if(match) {
+            const formatted = match[0].replace(/.{4}/g, '$& ').trim();
+            document.getElementById('card-input').value = formatted;
+            localStorage.setItem('card-input', formatted);
+            detectCardBrand(formatted);
+            showToast("Número de tarjeta reconocido");
+          } else {
+            showToast("Tarjeta no detectada. Alinea horizontalmente.");
+          }
+        } catch (ocrError) {
+          console.error("Error OCR:", ocrError);
+          showToast("Imposible completar reconocimiento.");
+        } finally {
+          document.getElementById('ocr-loading').classList.add('hidden');
+        }
+      };
+      img.src = source;
+    }
+
+    // Disparador del escáner
+    document.getElementById('btn-scan').onclick = async () => {
+      const video = document.getElementById('video');
+      if (!video.videoWidth) {
+        showToast("Iniciando lente...");
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      await processImageSource(canvas.toDataURL('image/png'));
+    };
+
+    // Archivo de galería
+    document.getElementById('file-input').onchange = (e) => {
+      if(e.target.files && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (event) => processImageSource(event.target.result);
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    };
+
+    // Copiar
+    function copyToClipboard(elementId) {
+      const copyText = document.getElementById(elementId).value;
+      if (!copyText.trim()) {
+        showToast("Campo vacío");
+        return;
+      }
+      
+      const textArea = document.createElement("textarea");
+      textArea.value = copyText;
+      textArea.style.position = "fixed"; 
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) showToast("Copiado");
+      } catch (err) {
+        showToast("No soportado");
+      }
+      document.body.removeChild(textArea);
+    }
+
+    // Resetear
+    const clearAll = () => {
+      inputs.forEach(id => {
+        if (id !== 'whatsapp-dest' && id !== 'delivery-toggle') {
+          document.getElementById(id).value = '';
+          localStorage.removeItem(id);
+        }
+      });
+      document.getElementById('card-input').value = '';
+      localStorage.removeItem('card-input');
+      
+      queue = [];
+      queueIdx = 0;
+      
+      const btnSend = document.getElementById('btn-send');
+      document.getElementById('btn-send-icon').classList.remove('hidden');
+      const countEl = document.getElementById('btn-send-count');
+      countEl.classList.add('hidden');
+      countEl.innerText = "";
+      
+      detectCardBrand("");
+      showToast("Campos reseteados");
+    };
+
+    document.getElementById('btn-clear').onclick = clearAll;
+
+    // Distribuidor a WhatsApp (Modo Único o Cola Segmentada)
+    document.getElementById('btn-send').onclick = () => {
+      const isDelivery = document.getElementById('delivery-toggle').checked;
+      const card = document.getElementById('card-input').value.trim();
+      const clientPhone = document.getElementById('client-phone').value.trim();
+      const amountVal = document.getElementById('amount').value.trim();
+      const suffixVal = document.getElementById('amount-suffix').value.trim();
+      const amount = amountVal ? `${amountVal} ${suffixVal}` : "";
+      const dest = document.getElementById('whatsapp-dest').value.replace(/\D/g, '');
+      const modeToggle = document.getElementById('mode-toggle');
+      const btnSend = document.getElementById('btn-send');
+      const iconEl = document.getElementById('btn-send-icon');
+      const countEl = document.getElementById('btn-send-count');
+
+      if (!dest) {
+        showToast("Ingresa un WhatsApp de destino.");
+        return;
+      }
+
+      // 1. Envío Segmentado (Un dato por cada click de envío)
+      if (modeToggle.checked) {
+        if (queue.length === 0) {
+          // Si es pedido a domicilio, encabezará siempre el envío de primero
+          if (isDelivery) queue.push("📦 PEDIDO A DOMICILIO");
+          
+          if (clientPhone) queue.push(`📞 Teléfono: ${clientPhone}`);
+          if (card) queue.push(`💳 Tarjeta: ${card}`);
+          if (amount) queue.push(`💰 Monto: ${amount}`);
+          
+          if (queue.length === 0) {
+            showToast("No hay información que despachar.");
+            return;
+          }
+        }
+
+        if (queueIdx < queue.length) {
+          window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(queue[queueIdx])}`, '_blank');
+          queueIdx++;
+          
+          iconEl.classList.add('hidden');
+          countEl.classList.remove('hidden');
+          countEl.innerText = `${queueIdx}/${queue.length}`;
+
+          if (queueIdx === queue.length) {
+            setTimeout(() => {
+              clearAll();
+              showToast("Cola segmentada enviada por completo.");
+            }, 1000);
+          }
+        }
+      } else {
+        // 2. Mensaje Único Consolidado
+        const messageLines = [];
+        if (isDelivery) {
+          messageLines.push("📦 *PEDIDO A DOMICILIO*");
+        }
+        if (clientPhone) messageLines.push(`*Teléfono:* ${clientPhone}`);
+        if (card) messageLines.push(`*Tarjeta:* \`${card}\``);
+        if (amount) messageLines.push(`*Monto:* ${amount}`);
+
+        if (messageLines.length === 0) {
+          showToast("Ingresa datos para construir el mensaje.");
+          return;
+        }
+
+        const msg = messageLines.join('\n');
+        window.open(`https://api.whatsapp.com/send?phone=${dest}&text=${encodeURIComponent(msg)}`, '_blank');
+        clearAll();
+      }
+    };
+
+    function toggleInfoModal() {
+      const modal = document.getElementById('info-modal');
+      modal.classList.toggle('hidden');
+      modal.classList.toggle('flex');
+    }
+  </script>
+</body>
+</html>
