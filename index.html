@@ -591,6 +591,7 @@
           if (clientPhone) queue.push(`${clientPhone}`);
           if (card) queue.push(`${card}`);
           if (amount) queue.push(`${amount}`);
+          queue.push(`----------`);
           
           if (queue.length === 0) {
             showToast("No hay información que despachar.");
